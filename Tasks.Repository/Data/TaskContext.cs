@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Tasks.Domain.Models;
 using Tasks.Domain.Models.Identity;
 
 namespace Tasks.Repository.Data
@@ -21,5 +22,7 @@ namespace Tasks.Repository.Data
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         }
+        // DbSet Properties for each entity in your domain model here.
+        public DbSet<Corporation> Corporations { get; set; }
     }
 }
