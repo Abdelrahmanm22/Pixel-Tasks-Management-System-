@@ -6,7 +6,7 @@ namespace Tasks.Presentation.ViewModels
     {
         public int Id { get; set; }
         
-        public string Code { get; set; }
+        public string? Code { get; set; }
         [Required(ErrorMessage = "Name is Requred ")]
         [MaxLength(50, ErrorMessage = "Max Length is 50 chars")]
         [MinLength(2, ErrorMessage = "Min Length is 5 chars")]

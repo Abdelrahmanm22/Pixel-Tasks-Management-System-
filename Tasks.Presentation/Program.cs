@@ -1,10 +1,13 @@
 using System.Threading.Tasks;
+using AutoMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Tasks.Domain;
 using Tasks.Domain.Models.Identity;
 using Tasks.Domain.Repositories;
+using Tasks.Presentation.MappingProfiles;
 using Tasks.Repository;
 using Tasks.Repository.Data;
 
@@ -33,7 +36,11 @@ namespace Tasks.Presentation
 
             #region Configure Services
             // Add services to the container.
-            builder.Services.AddControllersWithViews();
+            builder.Services.AddAutoMapper(M => M.AddProfiles(new List<Profile>() { new CorporationProfile() }));
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation().AddViewOptions(options => { 
+                options.HtmlHelperOptions.ClientValidationEnabled = true;
+            });
             builder.Services.AddDbContext<TaskContext>(Options =>
             {
                 Options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -62,7 +69,9 @@ namespace Tasks.Presentation
                 await DbContext.Database.MigrateAsync();//Udpate-Database on Startup
 
                 #region Data Seeding
-
+                var roleManager = Services.GetRequiredService<RoleManager<IdentityRole>>();
+                var userManager = Services.GetRequiredService<UserManager<AppUser>>();
+                await AppIdentityDbContextSeed.SeedUserAsync(userManager, roleManager);
                 #endregion
             }
             catch (Exception ex)

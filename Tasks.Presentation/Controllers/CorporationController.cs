@@ -24,5 +24,17 @@ namespace Tasks.Presentation.Controllers
             var corporationViewModel = _mapper.Map<IEnumerable<Corporation>,IEnumerable<CorporationViewModel>>(corporation);
             return View(corporationViewModel);
         }
+        public async Task<IActionResult> Details(int id)
+        {
+            var spec = new CorporationSpec(id);
+            var corporation = await _unitOfWork.Repository<Corporation>()
+                .GetByIdAsync(spec);
+
+            if (corporation is null)
+                return NotFound();
+
+            var viewModel = _mapper.Map<Corporation,CorporationViewModel>(corporation);
+            return View(viewModel);
+        }
     }
 }

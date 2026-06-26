@@ -11,5 +11,8 @@ namespace Tasks.Domain.Specifications.CorporationSpec
     {
         public CorporationSpec():base() 
         { }
+        //Get By Id
+        public CorporationSpec(int id) : base(c => c.Id == id)
+        { }
     }
 }
