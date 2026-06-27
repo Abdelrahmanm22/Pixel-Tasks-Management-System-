@@ -1,0 +1,211 @@
+@model Tasks.Presentation.ViewModels.SectionViewModel
+
+@{
+    ViewData["Title"] = "Edit Section";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-11">
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-semibold">
+                        <i class="bx bx-edit me-2 text-success"></i>Edit Section
+                    </h5>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary waves-effect">
+                        <i class="bx bx-arrow-back me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+
+                <div asp-validation-summary="None" class="text-danger"></div>
+
+                <form asp-action="Edit" asp-controller="Section" asp-route-id="@Model.Id"
+                      method="post" id="edit-form" novalidate>
+
+                    @Html.AntiForgeryToken()
+                    <input asp-for="Id" type="hidden" />
+
+                    <div class="row g-3">
+
+                        <!-- Code (read-only) -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Code</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bx bx-barcode"></i></span>
+                                <input asp-for="Code" class="form-control bg-light" readonly />
+                            </div>
+                            <small class="text-muted">Auto-generated — cannot be changed.</small>
+                        </div>
+
+                        <!-- Corporation (read-only on edit — code is tied to corp) -->
+                        <div class="col-md-4">
+                            <label asp-for="CorporationId" class="form-label fw-medium">Corporation</label>
+                            <input type="text" class="form-control bg-light" value="@Model.CorporationName" readonly />
+                            <input asp-for="CorporationId" type="hidden" />
+                            <small class="text-muted">Corporation cannot be changed after creation.</small>
+                        </div>
+
+                        <!-- Name -->
+                        <div class="col-md-4">
+                            <label asp-for="Name" class="form-label fw-medium">
+                                Section Name <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Name" class="form-control"
+                                   placeholder="e.g. Front Desk" />
+                            <span asp-validation-for="Name" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Contact Info -->
+                        <div class="col-md-6">
+                            <label asp-for="Email" class="form-label fw-medium">Email</label>
+                            <input asp-for="Email" class="form-control" type="email"
+                                   placeholder="section@example.com" />
+                            <span asp-validation-for="Email" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Phone" class="form-label fw-medium">Phone</label>
+                            <input asp-for="Phone" class="form-control"
+                                   placeholder="+1 234 567 8900" />
+                            <span asp-validation-for="Phone" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Fax" class="form-label fw-medium">Fax</label>
+                            <input asp-for="Fax" class="form-control"
+                                   placeholder="Fax number" />
+                            <span asp-validation-for="Fax" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Telex" class="form-label fw-medium">Telex</label>
+                            <input asp-for="Telex" class="form-control"
+                                   placeholder="Telex number" />
+                            <span asp-validation-for="Telex" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Address" class="form-label fw-medium">Address</label>
+                            <input asp-for="Address" class="form-control"
+                                   placeholder="Section address" />
+                            <span asp-validation-for="Address" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Notes" class="form-label fw-medium">Notes</label>
+                            <textarea asp-for="Notes" class="form-control" rows="3"
+                                      placeholder="Optional notes..."></textarea>
+                            <span asp-validation-for="Notes" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Employee Assignment Panel -->
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Assign Employees</label>
+                            <div class="border rounded p-3" id="employee-panel">
+                                <div id="employee-loading" class="text-center py-3">
+                                    <span class="spinner-border spinner-border-sm me-1"></span> Loading employees...
+                                </div>
+                                <div id="employee-list" class="d-none"></div>
+                                <div id="employee-empty" class="text-muted text-center py-3 d-none">
+                                    <i class="bx bx-user-x fs-4 d-block mb-1"></i>
+                                    No available employees in this corporation.<br>
+                                    <small>(Employees must be active and not already assigned to another section.)</small>
+                                </div>
+                            </div>
+                            <small class="text-muted mt-1 d-block">
+                                Active employees in this corporation. Uncheck to remove from section; check to assign.
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a asp-action="Details" asp-route-id="@Model.Id"
+                           class="btn btn-outline-info waves-effect me-auto">
+                            <i class="bx bx-show me-1"></i> View Details
+                        </a>
+                        <a asp-action="Index" class="btn btn-outline-secondary waves-effect">
+                            <i class="bx bx-x me-1"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success waves-effect waves-light"
+                                id="update-btn">
+                            <i class="bx bx-check me-1"></i> Update Section
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var initialSelectedIds = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SelectedUserIds));
+
+        function renderEmployees(employees) {
+            const list    = document.getElementById('employee-list');
+            const empty   = document.getElementById('employee-empty');
+            const loading = document.getElementById('employee-loading');
+
+            loading.classList.add('d-none');
+
+            if (!employees || employees.length === 0) {
+                list.classList.add('d-none');
+                empty.classList.remove('d-none');
+                return;
+            }
+
+            empty.classList.add('d-none');
+            list.innerHTML = '';
+
+            const grid = document.createElement('div');
+            grid.className = 'row g-2';
+
+            employees.forEach(emp => {
+                const isSelected = emp.isSelected || initialSelectedIds.includes(emp.id);
+                const col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4';
+                col.innerHTML = `
+                    <div class="form-check border rounded p-2 h-100 ${isSelected ? 'border-primary bg-soft-primary' : ''}">
+                        <input class="form-check-input employee-check" type="checkbox"
+                               name="SelectedUserIds" value="${emp.id}"
+                               id="emp-${emp.id}" ${isSelected ? 'checked' : ''}
+                               onchange="this.closest('.form-check').classList.toggle('border-primary', this.checked);
+                                         this.closest('.form-check').classList.toggle('bg-soft-primary', this.checked);">
+                        <label class="form-check-label w-100" for="emp-${emp.id}" style="cursor:pointer;">
+                            <div class="fw-semibold text-truncate">${emp.fullName}</div>
+                            <small class="text-muted text-truncate d-block">${emp.email || ''}</small>
+                        </label>
+                    </div>`;
+                grid.appendChild(col);
+            });
+
+            list.appendChild(grid);
+            list.classList.remove('d-none');
+        }
+
+        // Load employees on page load for current corporation + section
+        $.get('/Section/GetAvailableEmployees', {
+            corporationId: @Model.CorporationId,
+            sectionId: @Model.Id
+        }, function (data) {
+            renderEmployees(data);
+        }).fail(function () {
+            document.getElementById('employee-loading').classList.add('d-none');
+            toastr.error('Failed to load employees.', 'Error', { timeOut: 4000 });
+        });
+
+        document.getElementById('edit-form').addEventListener('submit', function () {
+            if ($(this).valid()) {
+                const btn = document.getElementById('update-btn');
+                btn.disabled  = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
+            }
+        });
+    </script>
+}

@@ -1,0 +1,66 @@
+@model Tasks.Presentation.ViewModels.TaskTypeViewModel
+
+@{
+    ViewData["Title"] = "Task Type Details";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card">
+
+            <div class="card-header bg-transparent border-bottom py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-semibold">
+                        <i class="bx bx-list-check me-2 text-primary"></i>@Model.Name
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <a asp-action="Index" class="btn btn-sm btn-outline-secondary waves-effect">
+                            <i class="bx bx-arrow-back me-1"></i> Back
+                        </a>
+                        <a asp-action="Edit" asp-route-id="@Model.Id"
+                           class="btn btn-sm btn-primary waves-effect waves-light">
+                            <i class="bx bx-edit me-1"></i> Edit
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="row g-4">
+
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-light">
+                            <small class="text-muted text-uppercase fw-semibold">Name</small>
+                            <div class="mt-1 fw-semibold fs-6">@Model.Name</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-light">
+                            <small class="text-muted text-uppercase fw-semibold">Category</small>
+                            <div class="mt-2">
+                                @{
+                                    var (badgeClass, icon, description) = Model.Category switch
+                                    {
+                                        Tasks.Domain.Enums.TaskCategory.Normal  => ("bg-soft-secondary text-secondary", "bx bx-task", "Plain task with no checklist or counter."),
+                                        Tasks.Domain.Enums.TaskCategory.Point   => ("bg-soft-info text-info", "bx bx-check-square", "Checklist task — assignees mark individual points."),
+                                        Tasks.Domain.Enums.TaskCategory.Counter => ("bg-soft-warning text-warning", "bx bx-sort-a-z", "Numeric progress task — tracks a count towards a target."),
+                                        _                                       => ("bg-soft-secondary text-secondary", "bx bx-task", "")
+                                    };
+                                }
+                                <span class="badge @badgeClass font-size-13 fw-medium">
+                                    <i class="@icon me-1"></i>@Model.Category
+                                </span>
+                                <div class="mt-1 text-muted small">@description</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts { }

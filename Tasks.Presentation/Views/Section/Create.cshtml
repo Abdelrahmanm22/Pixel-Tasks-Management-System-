@@ -1,0 +1,230 @@
+@model Tasks.Presentation.ViewModels.SectionViewModel
+
+@{
+    ViewData["Title"] = "Add Section";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-11">
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-semibold">
+                        <i class="bx bx-plus-circle me-2 text-primary"></i>New Section
+                    </h5>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary waves-effect">
+                        <i class="bx bx-arrow-back me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+
+                <div asp-validation-summary="None" class="text-danger"></div>
+
+                <form asp-action="Create" asp-controller="Section" method="post"
+                      id="create-form" novalidate>
+
+                    @Html.AntiForgeryToken()
+
+                    <div class="row g-3">
+
+                        <!-- Corporation -->
+                        <div class="col-md-6">
+                            <label asp-for="CorporationId" class="form-label fw-medium">
+                                Corporation <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="CorporationId"
+                                    asp-items="Model.Corporations"
+                                    class="form-select" id="corporation-select">
+                                <option value="">— Select Corporation —</option>
+                            </select>
+                            <span asp-validation-for="CorporationId" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Name -->
+                        <div class="col-md-6">
+                            <label asp-for="Name" class="form-label fw-medium">
+                                Section Name <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Name" class="form-control"
+                                   placeholder="e.g. Front Desk" />
+                            <span asp-validation-for="Name" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Code info -->
+                        <div class="col-12">
+                            <div class="alert alert-info d-flex align-items-center py-2 mb-0" role="alert">
+                                <i class="bx bx-info-circle me-2 fs-5"></i>
+                                <small>The section <strong>Code</strong> will be auto-generated
+                                    (e.g. <code>PXS-000001</code>) upon saving.</small>
+                            </div>
+                        </div>
+
+                        <!-- Contact Info -->
+                        <div class="col-md-6">
+                            <label asp-for="Email" class="form-label fw-medium">Email</label>
+                            <input asp-for="Email" class="form-control" type="email"
+                                   placeholder="section@example.com" />
+                            <span asp-validation-for="Email" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Phone" class="form-label fw-medium">Phone</label>
+                            <input asp-for="Phone" class="form-control"
+                                   placeholder="+1 234 567 8900" />
+                            <span asp-validation-for="Phone" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Fax" class="form-label fw-medium">Fax</label>
+                            <input asp-for="Fax" class="form-control"
+                                   placeholder="Fax number" />
+                            <span asp-validation-for="Fax" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Telex" class="form-label fw-medium">Telex</label>
+                            <input asp-for="Telex" class="form-control"
+                                   placeholder="Telex number" />
+                            <span asp-validation-for="Telex" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Address" class="form-label fw-medium">Address</label>
+                            <input asp-for="Address" class="form-control"
+                                   placeholder="Section address" />
+                            <span asp-validation-for="Address" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Notes" class="form-label fw-medium">Notes</label>
+                            <textarea asp-for="Notes" class="form-control" rows="3"
+                                      placeholder="Optional notes..."></textarea>
+                            <span asp-validation-for="Notes" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Employee Assignment Panel -->
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Assign Employees</label>
+                            <div class="border rounded p-3" id="employee-panel">
+                                <div id="employee-placeholder" class="text-muted text-center py-3">
+                                    <i class="bx bx-user-plus fs-4 d-block mb-1"></i>
+                                    Select a corporation above to load available employees.
+                                </div>
+                                <div id="employee-list" class="d-none"></div>
+                                <div id="employee-loading" class="text-center py-3 d-none">
+                                    <span class="spinner-border spinner-border-sm me-1"></span> Loading employees...
+                                </div>
+                                <div id="employee-empty" class="text-muted text-center py-3 d-none">
+                                    <i class="bx bx-user-x fs-4 d-block mb-1"></i>
+                                    No available employees in this corporation.<br>
+                                    <small>(Employees must be active and not already assigned to a section.)</small>
+                                </div>
+                            </div>
+                            <small class="text-muted mt-1 d-block">
+                                Only active employees in the selected corporation without an existing section assignment are shown.
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a asp-action="Index" class="btn btn-outline-secondary waves-effect">
+                            <i class="bx bx-x me-1"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary waves-effect waves-light"
+                                id="save-btn">
+                            <i class="bx bx-save me-1"></i> Save Section
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function renderEmployees(employees) {
+            const list    = document.getElementById('employee-list');
+            const empty   = document.getElementById('employee-empty');
+            const loading = document.getElementById('employee-loading');
+            const placeholder = document.getElementById('employee-placeholder');
+
+            loading.classList.add('d-none');
+            placeholder.classList.add('d-none');
+
+            if (!employees || employees.length === 0) {
+                list.classList.add('d-none');
+                empty.classList.remove('d-none');
+                return;
+            }
+
+            empty.classList.add('d-none');
+            list.innerHTML = '';
+
+            const grid = document.createElement('div');
+            grid.className = 'row g-2';
+
+            employees.forEach(emp => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4';
+                col.innerHTML = `
+                    <div class="form-check border rounded p-2 h-100 ${emp.isSelected ? 'border-primary bg-soft-primary' : ''}">
+                        <input class="form-check-input employee-check" type="checkbox"
+                               name="SelectedUserIds" value="${emp.id}"
+                               id="emp-${emp.id}" ${emp.isSelected ? 'checked' : ''}
+                               onchange="this.closest('.form-check').classList.toggle('border-primary', this.checked);
+                                         this.closest('.form-check').classList.toggle('bg-soft-primary', this.checked);">
+                        <label class="form-check-label w-100" for="emp-${emp.id}" style="cursor:pointer;">
+                            <div class="fw-semibold text-truncate">${emp.fullName}</div>
+                            <small class="text-muted text-truncate d-block">${emp.email || ''}</small>
+                        </label>
+                    </div>`;
+                grid.appendChild(col);
+            });
+
+            list.appendChild(grid);
+            list.classList.remove('d-none');
+        }
+
+        document.getElementById('corporation-select').addEventListener('change', function () {
+            const corpId = this.value;
+            const list      = document.getElementById('employee-list');
+            const empty     = document.getElementById('employee-empty');
+            const loading   = document.getElementById('employee-loading');
+            const placeholder = document.getElementById('employee-placeholder');
+
+            if (!corpId) {
+                list.classList.add('d-none');
+                empty.classList.add('d-none');
+                loading.classList.add('d-none');
+                placeholder.classList.remove('d-none');
+                return;
+            }
+
+            list.classList.add('d-none');
+            empty.classList.add('d-none');
+            placeholder.classList.add('d-none');
+            loading.classList.remove('d-none');
+
+            $.get('/Section/GetAvailableEmployees', { corporationId: corpId }, function (data) {
+                renderEmployees(data);
+            }).fail(function () {
+                loading.classList.add('d-none');
+                toastr.error('Failed to load employees.', 'Error', { timeOut: 4000 });
+            });
+        });
+
+        document.getElementById('create-form').addEventListener('submit', function () {
+            if ($(this).valid()) {
+                const btn = document.getElementById('save-btn');
+                btn.disabled  = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+            }
+        });
+    </script>
+}

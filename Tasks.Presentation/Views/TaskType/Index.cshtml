@@ -1,7 +1,7 @@
-@model IEnumerable<CorporationViewModel>
+@model IEnumerable<TaskTypeViewModel>
 
 @{
-    ViewData["Title"] = "Corporation List";
+    ViewData["Title"] = "Task Types";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
@@ -10,26 +10,23 @@
         <div class="card">
             <div class="card-body">
 
-                <!-- Action bar -->
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="card-title mb-0">
-                        <i class="bx bx-buildings me-2 text-primary"></i>Corporations
+                        <i class="bx bx-list-check me-2 text-primary"></i>Task Types
                     </h4>
                     <a asp-action="Create" class="btn btn-primary waves-effect waves-light">
-                        <i class="bx bx-plus me-1"></i> Add Corporation
+                        <i class="bx bx-plus me-1"></i> Add Task Type
                     </a>
                 </div>
 
-                <!-- Responsive DataTable -->
                 <div>
-                    <table id="corporations-table"
+                    <table id="tasktypes-table"
                            class="table table-hover table-bordered align-middle w-100">
                         <thead class="table-light">
                             <tr>
                                 <th width="50">#</th>
-                                <th width="120">Code</th>
                                 <th>Name</th>
-                                <th width="150">Name (Arabic)</th>
+                                <th width="160">Category</th>
                                 <th width="160" class="text-center">Actions</th>
                             </tr>
                         </thead>
@@ -37,46 +34,36 @@
                             @{
                                 var row = 1;
                             }
-                            @foreach (var corp in Model)
+                            @foreach (var item in Model)
                             {
-                                <tr id="row-@corp.Id">
+                                <tr id="row-@item.Id">
                                     <td class="fw-medium text-muted">@(row++)</td>
+                                    <td class="fw-semibold">@item.Name</td>
                                     <td>
-                                        @if (!string.IsNullOrEmpty(corp.Code))
-                                        {
-                                            <span class="badge bg-soft-primary text-primary font-size-12 fw-medium">
-                                                @corp.Code
-                                            </span>
+                                        @{
+                                            var (badgeClass, icon) = item.Category switch
+                                            {
+                                                Tasks.Domain.Enums.TaskCategory.Normal  => ("bg-soft-secondary text-secondary", "bx bx-task"),
+                                                Tasks.Domain.Enums.TaskCategory.Point   => ("bg-soft-info text-info", "bx bx-check-square"),
+                                                Tasks.Domain.Enums.TaskCategory.Counter => ("bg-soft-warning text-warning", "bx bx-sort-a-z"),
+                                                _                                       => ("bg-soft-secondary text-secondary", "bx bx-task")
+                                            };
                                         }
-                                        else
-                                        {
-                                            <span class="text-muted">—</span>
-                                        }
+                                        <span class="badge @badgeClass font-size-12 fw-medium">
+                                            <i class="@icon me-1"></i>@item.Category
+                                        </span>
                                     </td>
-                                    <td class="fw-semibold">@corp.Name</td>
-                                    <td>@(corp.NameAr ?? "—")</td>
                                     <td class="text-center">
-                                        <!-- Details -->
-                                        <!-- Details -->
-                                        <a asp-action="Details"
-                                           asp-route-id="@corp.Id"
-                                           class="btn btn-sm btn-info"
-                                           title="View">
+                                        <a asp-action="Details" asp-route-id="@item.Id"
+                                           class="btn btn-sm btn-info" title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <!-- Edit -->
-                                        <a asp-action="Edit"
-                                           asp-route-id="@corp.Id"
-                                           class="btn btn-sm btn-success"
-                                           title="Edit">
+                                        <a asp-action="Edit" asp-route-id="@item.Id"
+                                           class="btn btn-sm btn-success" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <!-- Delete -->
-                                        <button type="button"
-                                                class="btn btn-sm btn-danger btn-delete"
-                                                data-id="@corp.Id"
-                                                data-name="@corp.Name"
-                                                title="Delete">
+                                        <button type="button" class="btn btn-sm btn-danger btn-delete"
+                                                data-id="@item.Id" data-name="@item.Name" title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -92,29 +79,26 @@
 </div>
 
 @section Scripts {
-    <!-- DataTables -->
     <script src="~/back/assets/libs/datatables.net/js/jquery.dataTables.min.js"></script>
     <script src="~/back/assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
     <script src="~/back/assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js"></script>
     <script src="~/back/assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js"></script>
 
     <script>
-        // Initialize DataTable
-        $('#corporations-table').DataTable({
+        $('#tasktypes-table').DataTable({
             responsive: true,
             language: {
                 search: "<i class='bx bx-search'></i>",
-                searchPlaceholder: "Search corporations..."
+                searchPlaceholder: "Search task types..."
             }
         });
 
-        // SweetAlert2 Delete
         $(document).on('click', '.btn-delete', function () {
             const id   = $(this).data('id');
             const name = $(this).data('name');
 
             Swal.fire({
-                title: 'Delete Corporation?',
+                title: 'Delete Task Type?',
                 html: `Are you sure you want to delete <strong>"${name}"</strong>?<br><small class="text-muted">This action cannot be undone.</small>`,
                 icon: 'warning',
                 showCancelButton: true,
@@ -126,14 +110,13 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
-                        url: `/Corporation/Delete/${id}`,
+                        url: `/TaskType/Delete/${id}`,
                         type: 'POST',
                         headers: {
                             'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
                         },
                         success: function (response) {
                             if (response.success) {
-                                // Remove the row from the table
                                 $(`#row-${id}`).fadeOut(400, function () { $(this).remove(); });
                                 toastr.success(response.message, 'Deleted!', {
                                     closeButton: true,
@@ -153,6 +136,5 @@
         });
     </script>
 
-    @* Hidden CSRF token for AJAX delete *@
     @Html.AntiForgeryToken()
 }

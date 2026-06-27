@@ -36,7 +36,7 @@ namespace Tasks.Presentation
             builder.Host.UseSerilog();
 
             #region Configure Services
-            builder.Services.AddAutoMapper(M => M.AddProfiles(new List<Profile>() { new CorporationProfile() }));
+            builder.Services.AddAutoMapper(M => M.AddProfiles(new List<Profile>() { new CorporationProfile(), new TaskTypeProfile(), new SectionProfile() }));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<ICodeGeneratorService, CodeGeneratorService>();
             builder.Services.AddControllersWithViews()
