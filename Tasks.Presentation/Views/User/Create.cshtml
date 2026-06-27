@@ -1,0 +1,238 @@
+@model UserViewModel
+
+@{
+    ViewData["Title"] = "Add User";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-11">
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-semibold">
+                        <i class="bx bx-user-plus me-2 text-primary"></i>New User
+                    </h5>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary waves-effect">
+                        <i class="bx bx-arrow-back me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+
+                @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
+                {
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                }
+
+                <form asp-action="Create" asp-controller="User" method="post" id="create-form" novalidate>
+                    @Html.AntiForgeryToken()
+
+                    <div class="row g-3">
+
+                        <!-- First Name -->
+                        <div class="col-md-6">
+                            <label asp-for="FirstName" class="form-label fw-medium">
+                                First Name <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="FirstName" class="form-control" placeholder="First name" />
+                            <span asp-validation-for="FirstName" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Last Name -->
+                        <div class="col-md-6">
+                            <label asp-for="LastName" class="form-label fw-medium">
+                                Last Name <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="LastName" class="form-control" placeholder="Last name" />
+                            <span asp-validation-for="LastName" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Username -->
+                        <div class="col-md-6">
+                            <label asp-for="UserName" class="form-label fw-medium">
+                                Username <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="UserName" class="form-control" placeholder="e.g. john.doe" />
+                            <span asp-validation-for="UserName" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Email -->
+                        <div class="col-md-6">
+                            <label asp-for="Email" class="form-label fw-medium">
+                                Email <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Email" type="email" class="form-control" placeholder="user@example.com" />
+                            <span asp-validation-for="Email" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Phone -->
+                        <div class="col-md-6">
+                            <label asp-for="PhoneNumber" class="form-label fw-medium">Phone</label>
+                            <input asp-for="PhoneNumber" class="form-control" placeholder="+20 1XX XXX XXXX" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Gender -->
+                        <div class="col-md-6">
+                            <label asp-for="Gender" class="form-label fw-medium">
+                                Gender <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="Gender" class="form-select">
+                                <option value="">— Select Gender —</option>
+                                <option value="1">Male</option>
+                                <option value="2">Female</option>
+                            </select>
+                            <span asp-validation-for="Gender" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Role -->
+                        <div class="col-md-6">
+                            <label asp-for="Role" class="form-label fw-medium">
+                                Role <span class="text-danger">*</span>
+                            </label>
+                            <select asp-for="Role" asp-items="Model.Roles" class="form-select" id="role-select">
+                                <option value="">— Select Role —</option>
+                            </select>
+                            <span asp-validation-for="Role" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Active -->
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check form-switch mt-3">
+                                <input asp-for="IsActive" class="form-check-input" role="switch" id="is-active-check" />
+                                <label class="form-check-label fw-medium" for="is-active-check">Active</label>
+                            </div>
+                        </div>
+
+                        <!-- Divider: Corporation / Section (hidden for Admin role) -->
+                        <div class="col-12" id="corp-section-row">
+                            <hr class="my-1">
+                            <p class="text-muted small mb-2"><i class="bx bx-buildings me-1"></i>Corporation &amp; Section Assignment (required for Employee)</p>
+                            <div class="row g-3">
+                                <!-- Corporation -->
+                                <div class="col-md-6">
+                                    <label asp-for="CorporationId" class="form-label fw-medium">Corporation</label>
+                                    <select asp-for="CorporationId" asp-items="Model.Corporations"
+                                            class="form-select" id="corporation-select">
+                                        <option value="">— Select Corporation —</option>
+                                    </select>
+                                    <span asp-validation-for="CorporationId" class="text-danger small mt-1 d-block"></span>
+                                </div>
+
+                                <!-- Section (dynamic) -->
+                                <div class="col-md-6">
+                                    <label asp-for="SectionId" class="form-label fw-medium">Section</label>
+                                    <select asp-for="SectionId" class="form-select" id="section-select">
+                                        <option value="">— Select Section —</option>
+                                    </select>
+                                    <span asp-validation-for="SectionId" class="text-danger small mt-1 d-block"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password -->
+                        <div class="col-12"><hr class="my-1"></div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Password" class="form-label fw-medium">
+                                Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input asp-for="Password" type="password" class="form-control"
+                                       placeholder="Min 8 chars, uppercase, digit, symbol"
+                                       id="password-input" />
+                                <button class="btn btn-light" type="button" id="pw-toggle" tabindex="-1">
+                                    <i class="mdi mdi-eye-outline" id="pw-icon"></i>
+                                </button>
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="ConfirmPassword" class="form-label fw-medium">
+                                Confirm Password <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="ConfirmPassword" type="password" class="form-control"
+                                   placeholder="Repeat password" />
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a asp-action="Index" class="btn btn-outline-secondary waves-effect">
+                            <i class="bx bx-x me-1"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary waves-effect waves-light" id="save-btn">
+                            <i class="bx bx-save me-1"></i> Create User
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <script>
+        // Show/hide Corporation & Section block based on selected role
+        function toggleCorpSection() {
+            const role    = document.getElementById('role-select').value;
+            const block   = document.getElementById('corp-section-row');
+            const corpSel = document.getElementById('corporation-select');
+            const secSel  = document.getElementById('section-select');
+
+            if (role === 'Admin') {
+                block.style.display = 'none';
+                corpSel.value = '';
+                secSel.innerHTML = '<option value="">— Select Section —</option>';
+            } else {
+                block.style.display = '';
+            }
+        }
+
+        document.getElementById('role-select').addEventListener('change', toggleCorpSection);
+        toggleCorpSection(); // run on page load
+
+        // Load sections when corporation changes
+        document.getElementById('corporation-select').addEventListener('change', function () {
+            const corpId  = this.value;
+            const secSel  = document.getElementById('section-select');
+            secSel.innerHTML = '<option value="">— Select Section —</option>';
+
+            if (!corpId) return;
+
+            $.get('/User/GetSectionsByCorporation', { corporationId: corpId }, function (data) {
+                data.forEach(s => {
+                    secSel.innerHTML += `<option value="${s.value}">${s.text}</option>`;
+                });
+            });
+        });
+
+        // Password toggle
+        document.getElementById('pw-toggle').addEventListener('click', function () {
+            const input = document.getElementById('password-input');
+            const icon  = document.getElementById('pw-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('mdi-eye-outline', 'mdi-eye-off-outline');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('mdi-eye-off-outline', 'mdi-eye-outline');
+            }
+        });
+
+        // Submit spinner
+        document.getElementById('create-form').addEventListener('submit', function () {
+            if ($(this).valid()) {
+                const btn = document.getElementById('save-btn');
+                btn.disabled  = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+            }
+        });
+    </script>
+}

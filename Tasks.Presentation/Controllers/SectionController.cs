@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Tasks.Domain;
+using Tasks.Domain.Authorization;
 using Tasks.Domain.Models;
 using Tasks.Domain.Models.Identity;
 using Tasks.Domain.Services;
@@ -13,7 +14,7 @@ using Tasks.Presentation.ViewModels;
 
 namespace Tasks.Presentation.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = Permissions.Sections.Manage)]
     public class SectionController : Controller
     {
         private readonly IUnitOfWork _unitOfWork;

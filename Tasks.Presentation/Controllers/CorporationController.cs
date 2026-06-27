@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Tasks.Domain;
+using Tasks.Domain.Authorization;
 using Tasks.Domain.Models;
 using Tasks.Domain.Services;
 using Tasks.Domain.Specifications.CorporationSpec;
@@ -9,7 +10,7 @@ using Tasks.Presentation.ViewModels;
 
 namespace Tasks.Presentation.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = Permissions.Corporations.Manage)]
     public class CorporationController : Controller
     {
         private readonly IUnitOfWork _unitOfWork;

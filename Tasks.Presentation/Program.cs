@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -6,6 +7,7 @@ using Tasks.Domain;
 using Tasks.Domain.Models.Identity;
 using Tasks.Domain.Repositories;
 using Tasks.Domain.Services;
+using Tasks.Presentation.Authorization;
 using Tasks.Presentation.MappingProfiles;
 using Tasks.Repository;
 using Tasks.Repository.Data;
@@ -63,7 +65,14 @@ namespace Tasks.Presentation
                 options.Password.RequireLowercase       = true;
             })
             .AddEntityFrameworkStores<TaskContext>()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>();
+
+            // Authorization
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+            builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+            builder.Services.AddAuthorization();
 
             // Configure cookie to redirect to Login when unauthenticated
             builder.Services.ConfigureApplicationCookie(options =>

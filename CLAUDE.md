@@ -22,6 +22,7 @@ Tasks.Domain  (Core — no dependencies on other projects)
     ├── Models/            (BaseModel, ICodedEntity, domain entities)
     ├── Models/Identity/   (AppUser : IdentityUser)
     ├── Enums/             (Gender, TaskCategory, PriorityLevel, WorkTaskStatus, CommentType)
+    ├── Authorization/     (Roles, Permissions, RolePermissions — static RBAC constants)
     ├── Repositories/      (IGenericRepository<T>)
     ├── Services/          (ICodeGeneratorService)
     ├── Specifications/    (ISpecifications<T>, BaseSpecifications<T>, per-entity spec folders)
@@ -41,10 +42,12 @@ Tasks.Services  (Business Logic — references Tasks.Domain)
     └── CodeGeneration/CodeGeneratorService.cs  (generates sequential codes like PXC-000001)
 
 Tasks.Presentation  (MVC Web App — references Tasks.Repository + Tasks.Services)
-    ├── Controllers/       (AccountController, HomeController, CorporationController)
-    ├── ViewModels/        (LoginViewModel, CorporationViewModel, ErrorViewModel)
+    ├── Controllers/       (AccountController, HomeController, CorporationController, SectionController, TaskTypeController, UserController)
+    ├── ViewModels/        (LoginViewModel, CorporationViewModel, SectionViewModel, TaskTypeViewModel, UserViewModel, AvailableEmployeeViewModel, ErrorViewModel)
     ├── Views/             (Razor views organized per controller + Shared layout partials)
-    ├── MappingProfiles/   (CorporationProfile)
+    ├── MappingProfiles/   (CorporationProfile, SectionProfile, TaskTypeProfile)
+    ├── Authorization/     (PermissionRequirement, PermissionAuthorizationHandler, PermissionPolicyProvider, AppUserClaimsPrincipalFactory)
+    ├── TagHelpers/        (PermissionTagHelper — <permission required="..."> suppresses output for unauthorized users)
     ├── Helpers/           (DocumentSettings — file upload/delete utility)
     ├── Logs/              (Serilog daily rolling log files)
     ├── wwwroot/           (Skote template assets: css, js, lib, back/)
@@ -217,6 +220,13 @@ Padding: 6-digit zero-padded for 1–999,999; plain number above that.
 | `CorporationSpec()` | `Corporation` | Get all corporations |
 | `CorporationSpec(int id)` | `Corporation` | Get corporation by ID |
 | `CorporationByNameSpec(string name)` | `Corporation` | Find by exact name (case-insensitive) — used for remote uniqueness validation |
+| `SectionSpec()` | `Section` | Get all sections (includes Corporation + Users) |
+| `SectionSpec(int id)` | `Section` | Get section by ID (includes Corporation + Users) |
+| `SectionByNameSpec(string name)` | `Section` | Find by exact name — remote uniqueness validation |
+| `SectionByCorporationSpec(int corporationId)` | `Section` | Get all sections for a corporation (ordered by Name) — used in User create/edit dropdown |
+| `TaskTypeSpec()` | `TaskType` | Get all task types |
+| `TaskTypeSpec(int id)` | `TaskType` | Get task type by ID |
+| `TaskTypeByNameSpec(string name)` | `TaskType` | Find by exact name — remote uniqueness validation |
 
 ---
 
@@ -338,6 +348,7 @@ Default route: `{controller=Account}/{action=Login}/{id?}` — starts on Login p
 | `Login` | GET | Anonymous | Show login page (redirects to Home if already authenticated) |
 | `Login` | POST | Anonymous | Validate credentials (supports email or username), sign in via cookie |
 | `SignOut` | GET | Authorize | Sign out and redirect to Login |
+| `AccessDenied` | GET | Anonymous | 403 page shown when a user lacks the required permission |
 
 ### HomeController (`[Authorize]`)
 | Action | Description |
@@ -346,7 +357,7 @@ Default route: `{controller=Account}/{action=Login}/{id?}` — starts on Login p
 | `Privacy` | Privacy page |
 | `Error` | Error page |
 
-### CorporationController (`[Authorize]`)
+### CorporationController (`[Authorize(Policy = Permissions.Corporations.Manage)]`)
 | Action | Method | Description |
 |---|---|---|
 | `Index` | GET | List all corporations (DataTable view) |
@@ -356,17 +367,50 @@ Default route: `{controller=Account}/{action=Login}/{id?}` — starts on Login p
 | `Delete` | POST | Delete via AJAX, returns JSON `{ success, message }` |
 | `CheckUniqueName` | GET | Remote validation — checks corporation name uniqueness (excludes current ID during edit) |
 
+### SectionController (`[Authorize(Policy = Permissions.Sections.Manage)]`)
+| Action | Method | Description |
+|---|---|---|
+| `Index` | GET | List all sections (DataTable) |
+| `Details` | GET | View section + assigned employees |
+| `Create` | GET/POST | Create + assign employees; code auto-generated (prefix: `PXS`) |
+| `Edit` | GET/POST | Edit + reconcile employee assignments |
+| `Delete` | POST | Detach employees, then delete; AJAX JSON response |
+| `CheckUniqueName` | GET | Remote validation |
+| `GetAvailableEmployees` | GET | Returns active unassigned employees for a corporation (AJAX) |
+
+### TaskTypeController (`[Authorize(Policy = Permissions.TaskTypes.Manage)]`)
+| Action | Method | Description |
+|---|---|---|
+| `Index` | GET | List all task types |
+| `Details` | GET | View task type |
+| `Create` | GET/POST | Create task type |
+| `Edit` | GET/POST | Edit task type |
+| `Delete` | POST | Delete via AJAX |
+| `CheckUniqueName` | GET | Remote validation |
+
+### UserController (`[Authorize(Policy = Permissions.Users.Manage)]`)
+| Action | Method | Description |
+|---|---|---|
+| `Index` | GET | List all users (DataTable) with role/corp/section/status columns |
+| `Create` | GET/POST | Create user with role, corp, section, password |
+| `Edit` | GET/POST | Edit user info, role, assignment, optional password change |
+| `ToggleActive` | POST | Activate/deactivate user; AJAX JSON response |
+| `GetSectionsByCorporation` | GET | Returns sections for a corporation dropdown (AJAX) |
+
 ### Views Structure
 
 ```
 Views/
-├── Account/Login.cshtml           (Skote auth layout via _AuthLayout.cshtml)
-├── Corporation/                   (Index, Create, Edit, Details — all use _Layout.cshtml)
+├── Account/Login.cshtml, AccessDenied.cshtml  (Skote auth layout via _AuthLayout.cshtml)
+├── Corporation/                   (Index, Create, Edit, Details)
+├── Section/                       (Index, Create, Edit, Details)
+├── TaskType/                      (Index, Create, Edit, Details)
+├── User/                          (Index, Create, Edit)
 ├── Home/Index.cshtml, Privacy.cshtml
 └── Shared/
     ├── _Layout.cshtml             (Main Skote admin layout: sidebar + nav + content + footer)
     ├── _AuthLayout.cshtml         (Login/register page layout — no sidebar)
-    ├── _Sidebar.cshtml            (Left nav: Dashboard, System Settings → Corporation)
+    ├── _Sidebar.cshtml            (Left nav — menu items gated by <permission> TagHelper)
     ├── _Nav.cshtml                (Top navbar)
     ├── _Head.cshtml               (CSS includes)
     ├── _Scripts.cshtml            (JS includes)
@@ -378,10 +422,51 @@ Views/
 
 ---
 
+## Authorization System
+
+### Roles (defined in `Tasks.Domain/Authorization/Roles.cs`)
+- `Roles.Admin` = `"Admin"` — task creators; full access
+- `Roles.Employee` = `"Employee"` — assignees; limited access
+
+### Permissions (defined in `Tasks.Domain/Authorization/Permissions.cs`)
+Grouped by feature. Claim type: `Permissions.ClaimType = "permission"`.
+
+| Permission Constant | Value | Admin | Employee |
+|---|---|:---:|:---:|
+| `Permissions.Corporations.Manage` | `Corporations.Manage` | ✓ | |
+| `Permissions.Sections.Manage` | `Sections.Manage` | ✓ | |
+| `Permissions.TaskTypes.Manage` | `TaskTypes.Manage` | ✓ | |
+| `Permissions.Users.Manage` | `Users.Manage` | ✓ | |
+| `Permissions.Tasks.Create` | `Tasks.Create` | ✓ | |
+| `Permissions.Tasks.ViewAll` | `Tasks.ViewAll` | ✓ | |
+| `Permissions.Tasks.ViewAssigned` | `Tasks.ViewAssigned` | | ✓ |
+| `Permissions.Tasks.Comment` | `Tasks.Comment` | ✓ | ✓ |
+| `Permissions.Tasks.UpdateProgress` | `Tasks.UpdateProgress` | | ✓ |
+
+### How it works (end-to-end)
+1. **Seed:** `AppIdentityDbContextSeed` creates `Admin` and `Employee` roles, then assigns users.
+2. **Cookie:** `AppUserClaimsPrincipalFactory` fires at login — expands the user's role into individual `permission` claims stored in the auth cookie. No per-request DB hit.
+3. **Server guard:** `[Authorize(Policy = Permissions.Corporations.Manage)]` — `PermissionPolicyProvider` auto-creates a policy for any permission constant; `PermissionAuthorizationHandler` checks `HasClaim("permission", ...)`.
+4. **Client guard:** `<permission required="@Permissions.Corporations.Manage">…</permission>` — `PermissionTagHelper` suppresses output when the user lacks the claim. Used in `_Sidebar.cshtml` and action-button areas. Server and client guards are driven by the same claims, so they can never drift.
+5. **Admin → not assignable to tasks:** Domain rule (not a permission) — the user picker for task assignment queries only the `Employee` role via `UserManager.GetUsersInRoleAsync(Roles.Employee)`, so admins never appear. POST re-validates.
+
+### Adding a new permission
+1. Add a constant to `Permissions.cs`.
+2. Add it to `RolePermissions._map` for the relevant role(s).
+3. Decorate the controller/action: `[Authorize(Policy = Permissions.NewFeature.Action)]`.
+4. Gate the sidebar/button: `<permission required="@Permissions.NewFeature.Action">`.
+No policy registration needed — `PermissionPolicyProvider` auto-wires it.
+
+---
+
 ## ViewModels
 
 - **`LoginViewModel`** — `EmailOrUserName` (required), `Password` (required), `RememberMe`
 - **`CorporationViewModel`** — `Id`, `Code?` (read-only), `Name` (required, 2-200 chars, `[Remote]` unique check), `NameAr?` (max 200), `Notes?` (max 5000)
+- **`SectionViewModel`** — `Id`, `Code?`, `Name`, `CorporationId`, `Email?`, `Fax?`, `Phone?`, `Address?`, `Telex?`, `Notes?`, `SelectedUserIds`, display helpers (`CorporationName`, `MemberCount`, `Corporations`, `AvailableEmployees`)
+- **`TaskTypeViewModel`** — `Id`, `Name` (required, unique), `Category` (TaskCategory enum)
+- **`UserViewModel`** — `Id?`, `FirstName`, `LastName`, `UserName`, `Email`, `PhoneNumber?`, `Gender`, `Role` (required), `CorporationId?`, `SectionId?`, `IsActive`, `Password?`/`ConfirmPassword?` (create-only / optional on edit), display helpers (`CorporationName`, `SectionName`, `Corporations`, `Sections`, `Roles`)
+- **`AvailableEmployeeViewModel`** — `Id`, `FullName`, `Email`, `IsSelected` — used in Section create/edit employee picker
 - **`ErrorViewModel`** — `RequestId`
 
 ---
@@ -424,12 +509,23 @@ Pixel.Tasks/
 │   │   └── IGenericRepository.cs
 │   ├── Services/
 │   │   └── ICodeGeneratorService.cs
+│   ├── Authorization/
+│   │   ├── Roles.cs
+│   │   ├── Permissions.cs
+│   │   └── RolePermissions.cs
 │   └── Specifications/
 │       ├── BaseSpecifications.cs
 │       ├── ISpecifications.cs
-│       └── CorporationSpec/
-│           ├── CorporationSpec.cs
-│           └── CorporationByNameSpec.cs
+│       ├── CorporationSpec/
+│       │   ├── CorporationSpec.cs
+│       │   └── CorporationByNameSpec.cs
+│       ├── SectionSpec/
+│       │   ├── SectionSpec.cs
+│       │   ├── SectionByNameSpec.cs
+│       │   └── SectionByCorporationSpec.cs
+│       └── TaskTypeSpec/
+│           ├── TaskTypeSpec.cs
+│           └── TaskTypeByNameSpec.cs
 ├── Tasks.Repository/
 │   ├── Tasks.Repository.csproj
 │   ├── GenericRepository.cs
@@ -458,24 +554,43 @@ Pixel.Tasks/
     ├── Tasks.Presentation.csproj
     ├── Program.cs
     ├── appsettings.json
+    ├── Authorization/
+    │   ├── PermissionRequirement.cs
+    │   ├── PermissionAuthorizationHandler.cs
+    │   ├── PermissionPolicyProvider.cs
+    │   └── AppUserClaimsPrincipalFactory.cs
+    ├── TagHelpers/
+    │   └── PermissionTagHelper.cs
     ├── Controllers/
     │   ├── AccountController.cs
     │   ├── HomeController.cs
-    │   └── CorporationController.cs
+    │   ├── CorporationController.cs
+    │   ├── SectionController.cs
+    │   ├── TaskTypeController.cs
+    │   └── UserController.cs
     ├── ViewModels/
     │   ├── LoginViewModel.cs
     │   ├── CorporationViewModel.cs
+    │   ├── SectionViewModel.cs
+    │   ├── TaskTypeViewModel.cs
+    │   ├── UserViewModel.cs
+    │   ├── AvailableEmployeeViewModel.cs
     │   └── ErrorViewModel.cs
     ├── MappingProfiles/
-    │   └── CorporationProfile.cs
+    │   ├── CorporationProfile.cs
+    │   ├── SectionProfile.cs
+    │   └── TaskTypeProfile.cs
     ├── Helpers/
     │   └── DocumentSettings.cs
     ├── Views/
     │   ├── _ViewImports.cshtml
     │   ├── _ViewStart.cshtml
-    │   ├── Account/Login.cshtml
+    │   ├── Account/Login.cshtml, AccessDenied.cshtml
     │   ├── Home/Index.cshtml, Privacy.cshtml
     │   ├── Corporation/Index.cshtml, Create.cshtml, Edit.cshtml, Details.cshtml
+    │   ├── Section/Index.cshtml, Create.cshtml, Edit.cshtml, Details.cshtml
+    │   ├── TaskType/Index.cshtml, Create.cshtml, Edit.cshtml, Details.cshtml
+    │   ├── User/Index.cshtml, Create.cshtml, Edit.cshtml
     │   └── Shared/ (_Layout, _AuthLayout, _Sidebar, _Nav, _Head, _Scripts, _Footer, _Notifications, _RightSideBar, _ValidationScriptsPartial, Error)
     ├── Logs/
     └── wwwroot/ (Skote template: css/, js/, lib/, back/, favicon.ico)
@@ -500,9 +615,10 @@ Pixel.Tasks/
 13. All entities that are DB-persisted inherit from `BaseModel`
 14. String-based includes (`IncludeStrings`) used for multi-level navigation (ThenInclude equivalent)
 15. Comments only when intent is not obvious; remove pointless or redundant comments
-16. Controllers use `[Authorize]` by default; login actions use `[AllowAnonymous]`
+16. Controllers use `[Authorize(Policy = Permissions.X.Y)]` for permission-based access; `[Authorize]` for authenticated-only (dashboard); login/access-denied actions use `[AllowAnonymous]`
 17. Delete actions return JSON for AJAX calls; Create/Edit use POST + redirect pattern
 18. `[Remote]` attribute on ViewModels for client-side uniqueness validation
+19. Authorization constants (`Roles`, `Permissions`) live in `Tasks.Domain/Authorization/` — no web/infra deps
 
 ---
 

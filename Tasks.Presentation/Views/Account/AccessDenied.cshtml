@@ -1,0 +1,59 @@
+@{
+    ViewData["Title"] = "Access Denied";
+    Layout = "~/Views/Shared/_AuthLayout.cshtml";
+}
+
+<div class="account-pages my-5 pt-sm-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6 col-xl-5 text-center">
+
+                <div class="card overflow-hidden">
+                    <div class="bg-danger bg-soft">
+                        <div class="row">
+                            <div class="col-7">
+                                <div class="text-danger p-4">
+                                    <h5 class="text-danger">Access Denied</h5>
+                                    <p>You don't have permission to view this page.</p>
+                                </div>
+                            </div>
+                            <div class="col-5 align-self-end">
+                                <img src="~/back/assets/images/profile-img.png" alt="" class="img-fluid">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body pt-4 pb-4">
+                        <div class="avatar-md mx-auto mb-4">
+                            <span class="avatar-title rounded-circle bg-danger-subtle text-danger fs-1">
+                                <i class="bx bx-shield-x"></i>
+                            </span>
+                        </div>
+
+                        <h4 class="mt-0 mb-2">403 — Forbidden</h4>
+                        <p class="text-muted mb-4">
+                            You are not authorized to access this resource.<br>
+                            Please contact your administrator if you believe this is a mistake.
+                        </p>
+
+                        <div class="d-flex gap-2 justify-content-center">
+                            <a asp-controller="Home" asp-action="Index" class="btn btn-primary waves-effect waves-light">
+                                <i class="bx bx-home-circle me-1"></i> Go to Dashboard
+                            </a>
+                            <a asp-controller="Account" asp-action="SignOut" class="btn btn-outline-secondary waves-effect">
+                                <i class="bx bx-power-off me-1"></i> Sign Out
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <p class="text-muted">
+                        © <script>document.write(new Date().getFullYear())</script>
+                        PixelSoft. Crafted with <i class="mdi mdi-heart text-danger"></i> by Pixel Team
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

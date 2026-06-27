@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Tasks.Domain.Authorization;
 using Tasks.Domain.Enums;
 using Tasks.Domain.Models.Identity;
 
@@ -8,6 +9,13 @@ namespace Tasks.Repository.Data
     {
         public static async Task SeedUserAsync(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager)
         {
+            // Seed roles first
+            foreach (var role in new[] { Roles.Admin, Roles.Employee })
+            {
+                if (!await roleManager.RoleExistsAsync(role))
+                    await roleManager.CreateAsync(new IdentityRole(role));
+            }
+
             if (!userManager.Users.Any())
             {
                 var admin = new AppUser
@@ -22,6 +30,7 @@ namespace Tasks.Repository.Data
                     EmailConfirmed = true,
                 };
                 await userManager.CreateAsync(admin, "Admin@123456");
+                await userManager.AddToRoleAsync(admin, Roles.Admin);
 
                 var abdelrahman = new AppUser
                 {
@@ -35,6 +44,7 @@ namespace Tasks.Repository.Data
                     EmailConfirmed = true,
                 };
                 await userManager.CreateAsync(abdelrahman, "Ar115599@");
+                await userManager.AddToRoleAsync(abdelrahman, Roles.Admin);
 
                 var khaled = new AppUser
                 {
@@ -48,6 +58,7 @@ namespace Tasks.Repository.Data
                     EmailConfirmed = true,
                 };
                 await userManager.CreateAsync(khaled, "Ar115599@");
+                await userManager.AddToRoleAsync(khaled, Roles.Employee);
 
                 var omar = new AppUser
                 {
@@ -61,6 +72,7 @@ namespace Tasks.Repository.Data
                     EmailConfirmed = true,
                 };
                 await userManager.CreateAsync(omar, "Ar115599@");
+                await userManager.AddToRoleAsync(omar, Roles.Employee);
             }
         }
     }

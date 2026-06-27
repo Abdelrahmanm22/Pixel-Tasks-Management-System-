@@ -28,6 +28,9 @@ namespace Tasks.Repository.Data.Configrations
                 .IsRequired(false)
                 .HasMaxLength(500);
 
+            builder.HasIndex(x => x.UserName).IsUnique();
+            builder.HasIndex(x => x.Email).IsUnique();
+
             // Relationships — nullable FKs (admin users may not belong to any corp/section)
             // NoAction: SQL Server cannot have multiple cascade paths reaching the same table.
             // Corporation → AppUser → WorkTask AND Corporation → WorkTask would create a cycle.

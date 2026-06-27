@@ -16,34 +16,53 @@
                     </a>
                 </li>
 
-                <li class="menu-title">Settings</li>
+                <permission required="@Permissions.Tasks.ViewAssigned">
+                    <li class="menu-title">My Tasks</li>
+                    <li>
+                        <a href="#" class="waves-effect">
+                            <i class="bx bx-task"></i>
+                            <span>Assigned Tasks</span>
+                        </a>
+                    </li>
+                </permission>
 
-                <li>
-                    <a href="javascript: void(0);" class="has-arrow waves-effect">
-                        <i class="bx bx-cog bx-spin"></i>
-                        <span>System Settings</span>
-                    </a>
-                    <ul class="sub-menu" aria-expanded="false">
-                        <li>
-                            <a asp-action="Index" asp-controller="Corporation">
-                                <i class="bx bx-buildings"></i>
-                                Corporation
-                            </a>
-                        </li>
-                        <li>
-                            <a asp-action="Index" asp-controller="Section">
-                                <i class="bx bx-sitemap"></i>
-                                Sections
-                            </a>
-                        </li>
-                        <li>
-                            <a asp-action="Index" asp-controller="TaskType">
-                                <i class="bx bx-list-check"></i>
-                                Task Types
-                            </a>
-                        </li>
-                    </ul>
-                </li>
+                <permission required="@Permissions.Corporations.Manage">
+                    <li class="menu-title">Settings</li>
+
+                    <li>
+                        <a href="javascript: void(0);" class="has-arrow waves-effect">
+                            <i class="bx bx-cog bx-spin"></i>
+                            <span>System Settings</span>
+                        </a>
+                        <ul class="sub-menu" aria-expanded="false">
+                            <li>
+                                <a asp-action="Index" asp-controller="Corporation">
+                                    <i class="bx bx-buildings"></i>
+                                    Corporation
+                                </a>
+                            </li>
+                            <li>
+                                <a asp-action="Index" asp-controller="Section">
+                                    <i class="bx bx-sitemap"></i>
+                                    Sections
+                                </a>
+                            </li>
+                            <li>
+                                <a asp-action="Index" asp-controller="TaskType">
+                                    <i class="bx bx-list-check"></i>
+                                    Task Types
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li>
+                        <a asp-action="Index" asp-controller="User" class="waves-effect">
+                            <i class="bx bx-group"></i>
+                            <span>Users</span>
+                        </a>
+                    </li>
+                </permission>
 
             </ul>
         </div>

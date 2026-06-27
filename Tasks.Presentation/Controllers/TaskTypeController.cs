@@ -2,13 +2,14 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Tasks.Domain;
+using Tasks.Domain.Authorization;
 using Tasks.Domain.Models;
 using Tasks.Domain.Specifications.TaskTypeSpec;
 using Tasks.Presentation.ViewModels;
 
 namespace Tasks.Presentation.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = Permissions.TaskTypes.Manage)]
     public class TaskTypeController : Controller
     {
         private readonly IUnitOfWork _unitOfWork;

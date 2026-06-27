@@ -1,0 +1,170 @@
+@model IEnumerable<UserViewModel>
+
+@{
+    ViewData["Title"] = "Users";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title mb-0">
+                        <i class="bx bx-group me-2 text-primary"></i>Users
+                    </h4>
+                    <a asp-action="Create" class="btn btn-primary waves-effect waves-light">
+                        <i class="bx bx-user-plus me-1"></i> Add User
+                    </a>
+                </div>
+
+                <div>
+                    <table id="users-table"
+                           class="table table-hover table-bordered align-middle w-100">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="50">#</th>
+                                <th>Full Name</th>
+                                <th width="160">Username</th>
+                                <th width="220">Email</th>
+                                <th width="100">Role</th>
+                                <th width="160">Corporation</th>
+                                <th width="130">Section</th>
+                                <th width="90" class="text-center">Status</th>
+                                <th width="120" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var row = 1;
+                            }
+                            @foreach (var user in Model)
+                            {
+                                <tr id="row-@user.Id">
+                                    <td class="fw-medium text-muted">@(row++)</td>
+                                    <td class="fw-semibold">@user.FullName</td>
+                                    <td class="text-muted">@user.UserName</td>
+                                    <td class="text-muted">@user.Email</td>
+                                    <td>
+                                        @if (user.Role == Roles.Admin)
+                                        {
+                                            <span class="badge bg-soft-danger text-danger">Admin</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-soft-primary text-primary">Employee</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(user.CorporationName))
+                                        {
+                                            @user.CorporationName
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(user.SectionName))
+                                        {
+                                            @user.SectionName
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="badge bg-soft-success text-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-soft-secondary text-secondary">Inactive</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <a asp-action="Edit" asp-route-id="@user.Id"
+                                           class="btn btn-sm btn-success" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button"
+                                                class="btn btn-sm @(user.IsActive ? "btn-warning" : "btn-secondary") btn-toggle"
+                                                data-id="@user.Id"
+                                                data-name="@user.FullName"
+                                                data-active="@user.IsActive.ToString().ToLower()"
+                                                title="@(user.IsActive ? "Deactivate" : "Activate")">
+                                            <i class="@(user.IsActive ? "fas fa-user-slash" : "fas fa-user-check")"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/back/assets/libs/datatables.net/js/jquery.dataTables.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js"></script>
+
+    <script>
+        $('#users-table').DataTable({
+            responsive: true,
+            language: {
+                search: "<i class='bx bx-search'></i>",
+                searchPlaceholder: "Search users..."
+            }
+        });
+
+        $(document).on('click', '.btn-toggle', function () {
+            const id     = $(this).data('id');
+            const name   = $(this).data('name');
+            const active = $(this).data('active') === 'true';
+            const action = active ? 'Deactivate' : 'Activate';
+            const icon   = active ? 'bx-user-slash' : 'bx-user-check';
+
+            Swal.fire({
+                title: `${action} User?`,
+                html: `Are you sure you want to <strong>${action.toLowerCase()}</strong> <strong>"${name}"</strong>?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: active ? '#f46a6a' : '#34c38f',
+                cancelButtonColor: '#74788d',
+                confirmButtonText: `<i class="bx ${icon} me-1"></i> Yes, ${action}`,
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `/User/ToggleActive/${id}`,
+                        type: 'POST',
+                        headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
+                        success: function (response) {
+                            if (response.success) {
+                                toastr.success(response.message, `${action}d!`, { closeButton: true, progressBar: true, timeOut: 4000 });
+                                setTimeout(() => location.reload(), 1200);
+                            } else {
+                                toastr.error(response.message, 'Error', { timeOut: 5000 });
+                            }
+                        },
+                        error: function () {
+                            toastr.error('An unexpected error occurred.', 'Error', { timeOut: 5000 });
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+
+    @Html.AntiForgeryToken()
+}
