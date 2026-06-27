@@ -1,0 +1,260 @@
+@model WorkTaskViewModel
+@using Tasks.Domain.Enums
+
+@{
+    ViewData["Title"] = "Edit Task";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var isPoint   = Model.TaskCategory == TaskCategory.Point;
+    var isCounter = Model.TaskCategory == TaskCategory.Counter;
+}
+
+<link href="~/back/assets/libs/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-11">
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-semibold">
+                        <i class="bx bx-edit me-2 text-primary"></i>Edit Task
+                        <span class="badge bg-soft-primary text-primary ms-2">@Model.Code</span>
+                    </h5>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary waves-effect">
+                        <i class="bx bx-arrow-back me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <form asp-action="Edit" method="post" id="edit-form" novalidate>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="TaskTypeId" />
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label asp-for="Title" class="form-label fw-medium">Title <span class="text-danger">*</span></label>
+                            <input asp-for="Title" class="form-control" />
+                            <span asp-validation-for="Title" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="Priority" class="form-label fw-medium">Priority <span class="text-danger">*</span></label>
+                            <select asp-for="Priority" asp-items="Html.GetEnumSelectList<PriorityLevel>()" class="form-select"></select>
+                            <span asp-validation-for="Priority" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Task Type</label>
+                            <input class="form-control" value="@Model.TaskTypeName (@Model.TaskCategory)" disabled />
+                            <small class="text-muted">Task type cannot be changed after creation.</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="RequestDate" class="form-label fw-medium">Request Date <span class="text-danger">*</span></label>
+                            <input asp-for="RequestDate" type="date" class="form-control" />
+                            <span asp-validation-for="RequestDate" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="DueDate" class="form-label fw-medium">Due Date <span class="text-danger">*</span></label>
+                            <input asp-for="DueDate" type="date" class="form-control" />
+                            <span asp-validation-for="DueDate" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        @if (isCounter)
+                        {
+                            <div class="col-md-4" id="counter-block">
+                                <label asp-for="TargetCount" class="form-label fw-medium">Target Count <span class="text-danger">*</span></label>
+                                <input asp-for="TargetCount" type="number" min="1" class="form-control" />
+                                <span asp-validation-for="TargetCount" class="text-danger small mt-1 d-block"></span>
+                            </div>
+                        }
+
+                        @if (isPoint)
+                        {
+                            <div class="col-12" id="points-block">
+                                <label class="form-label fw-medium">Checklist Points <span class="text-danger">*</span></label>
+                                <div class="border rounded p-3">
+                                    <div id="points-list">
+                                        @for (var i = 0; i < Model.Points.Count; i++)
+                                        {
+                                            <div class="input-group mb-2 point-row">
+                                                <span class="input-group-text"><i class="bx bx-list-check"></i></span>
+                                                <input type="hidden" class="point-id" name="Points[@i].Id" value="@Model.Points[i].Id" />
+                                                <input type="text" class="form-control point-desc" name="Points[@i].Description" value="@Model.Points[i].Description" />
+                                                <button type="button" class="btn btn-outline-danger remove-point"><i class="bx bx-trash"></i></button>
+                                            </div>
+                                        }
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-point-btn">
+                                        <i class="bx bx-plus me-1"></i> Add Point
+                                    </button>
+                                </div>
+                                <small class="text-muted">Removing a point deletes everyone's progress on it.</small>
+                            </div>
+                        }
+
+                        <div class="col-12"><hr class="my-1" /></div>
+
+                        <div class="col-md-6">
+                            <label asp-for="CorporationId" class="form-label fw-medium">Corporation <span class="text-danger">*</span></label>
+                            <select asp-for="CorporationId" asp-items="Model.Corporations" class="form-select" id="corporation-select">
+                                <option value="">— Select Corporation —</option>
+                            </select>
+                            <span asp-validation-for="CorporationId" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="SectionId" class="form-label fw-medium">Section <small class="text-muted">(optional)</small></label>
+                            <select asp-for="SectionId" asp-items="Model.Sections" class="form-select" id="section-select">
+                                <option value="">— All Sections —</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label fw-medium mb-0">Assign Employees <span class="text-danger">*</span></label>
+                                <button type="button" class="btn btn-sm btn-link p-0" id="select-all-btn">Select all</button>
+                            </div>
+                            <select multiple name="SelectedUserIds" id="employee-select" class="form-select" style="width:100%;">
+                                @foreach (var emp in Model.AvailableEmployees)
+                                {
+                                    <option value="@emp.Id" selected="@emp.IsSelected">@emp.FullName</option>
+                                }
+                            </select>
+                            <small class="text-muted mt-1 d-block">Removing an assignee deletes their progress on this task.</small>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Description" class="form-label fw-medium">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="Description" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Notes" class="form-label fw-medium">Notes</label>
+                            <textarea asp-for="Notes" class="form-control" rows="2"></textarea>
+                            <span asp-validation-for="Notes" class="text-danger small mt-1 d-block"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a asp-action="Index" class="btn btn-outline-secondary waves-effect"><i class="bx bx-x me-1"></i> Cancel</a>
+                        <button type="submit" class="btn btn-primary waves-effect waves-light" id="save-btn">
+                            <i class="bx bx-save me-1"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/back/assets/libs/select2/js/select2.min.js"></script>
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <script>
+        const isPoint = @Json.Serialize(isPoint);
+        const initialAssignees = @Html.Raw(Json.Serialize(Model.SelectedUserIds));
+        const initialPointIds  = @Html.Raw(Json.Serialize(Model.Points.Where(p => p.Id != 0).Select(p => p.Id)));
+
+        // ── Points editor ─────────────────────────────────────────────
+        function reindexPoints() {
+            document.querySelectorAll('#points-list .point-row').forEach((row, i) => {
+                row.querySelector('.point-id').name   = `Points[${i}].Id`;
+                row.querySelector('.point-desc').name = `Points[${i}].Description`;
+            });
+        }
+        function addPoint() {
+            const row = document.createElement('div');
+            row.className = 'input-group mb-2 point-row';
+            row.innerHTML = `
+                <span class="input-group-text"><i class="bx bx-list-check"></i></span>
+                <input type="hidden" class="point-id" value="0" />
+                <input type="text" class="form-control point-desc" placeholder="Describe this step..." />
+                <button type="button" class="btn btn-outline-danger remove-point"><i class="bx bx-trash"></i></button>`;
+            document.getElementById('points-list').appendChild(row);
+            reindexPoints();
+        }
+        if (isPoint) {
+            document.getElementById('add-point-btn').addEventListener('click', addPoint);
+            document.getElementById('points-list').addEventListener('click', function (e) {
+                if (e.target.closest('.remove-point')) {
+                    e.target.closest('.point-row').remove();
+                    reindexPoints();
+                }
+            });
+        }
+
+        // ── Select2 ───────────────────────────────────────────────────
+        const $emp = $('#employee-select').select2({ placeholder: 'Select employees...', allowClear: true, width: '100%' });
+
+        function loadEmployees(preserve) {
+            const corpId = document.getElementById('corporation-select').value;
+            const secId  = document.getElementById('section-select').value;
+            if (!corpId) { $emp.empty().trigger('change'); return; }
+            $.get('/Task/GetAvailableEmployees', { corporationId: corpId, sectionId: secId || null }, function (data) {
+                const selected = preserve ? ($emp.val() || []) : [];
+                $emp.empty();
+                data.forEach(e => $emp.append(new Option(e.fullName, e.id, false, selected.includes(e.id))));
+                $emp.trigger('change');
+            });
+        }
+
+        document.getElementById('corporation-select').addEventListener('change', function () {
+            const corpId = this.value;
+            const secSel = document.getElementById('section-select');
+            secSel.innerHTML = '<option value="">— All Sections —</option>';
+            if (corpId) {
+                $.get('/Task/GetSectionsByCorporation', { corporationId: corpId }, function (data) {
+                    data.forEach(s => secSel.innerHTML += `<option value="${s.value}">${s.text}</option>`);
+                });
+            }
+            loadEmployees(false);
+        });
+        document.getElementById('section-select').addEventListener('change', () => loadEmployees(true));
+        document.getElementById('select-all-btn').addEventListener('click', function () {
+            $emp.find('option').prop('selected', true);
+            $emp.trigger('change');
+        });
+
+        // ── Submit with progress-loss warning ─────────────────────────
+        let confirmed = false;
+        document.getElementById('edit-form').addEventListener('submit', function (e) {
+            const currentAssignees = $emp.val() || [];
+            if (currentAssignees.length === 0) {
+                e.preventDefault();
+                toastr.warning('Assign the task to at least one employee.', 'Assignees');
+                return;
+            }
+
+            const removedAssignees = initialAssignees.filter(id => !currentAssignees.includes(id));
+            const currentPointIds  = Array.from(document.querySelectorAll('#points-list .point-id'))
+                                          .map(i => parseInt(i.value)).filter(v => v > 0);
+            const removedPoints = initialPointIds.filter(id => !currentPointIds.includes(id));
+
+            if (!confirmed && (removedAssignees.length > 0 || removedPoints.length > 0)) {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Remove progress?',
+                    html: `You removed <strong>${removedAssignees.length}</strong> assignee(s) and <strong>${removedPoints.length}</strong> point(s).<br><small class="text-muted">Their saved progress will be permanently deleted.</small>`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#f46a6a',
+                    confirmButtonText: 'Yes, save changes',
+                    reverseButtons: true
+                }).then(r => {
+                    if (r.isConfirmed) { confirmed = true; this.submit(); }
+                });
+                return;
+            }
+
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+        });
+    </script>
+}

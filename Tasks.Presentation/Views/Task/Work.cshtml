@@ -1,0 +1,174 @@
+@model TaskWorkViewModel
+@using Tasks.Domain.Enums
+@{
+    ViewData["Title"] = "Task";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var panel = Model.CommentsPanel;
+
+    (string cls, string text) PriorityBadge(PriorityLevel p) => p switch
+    {
+        PriorityLevel.Low      => ("bg-soft-success text-success", "Low"),
+        PriorityLevel.Medium   => ("bg-soft-warning text-warning", "Medium"),
+        PriorityLevel.High     => ("bg-soft-danger text-danger", "High"),
+        PriorityLevel.Critical => ("bg-danger text-white", "Critical"),
+        _ => ("bg-soft-secondary text-secondary", p.ToString())
+    };
+}
+
+@Html.AntiForgeryToken()
+
+<div class="row">
+    <div class="col-xl-7">
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center py-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    <i class="bx bx-task me-2 text-primary"></i>@Model.Title
+                    <span class="badge bg-soft-primary text-primary ms-2">@Model.Code</span>
+                </h5>
+                <a asp-action="MyTasks" class="btn btn-sm btn-outline-secondary"><i class="bx bx-arrow-back me-1"></i>My Tasks</a>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4"><small class="text-muted d-block">Priority</small>@{ var pr = PriorityBadge(Model.Priority); }<span class="badge @pr.cls">@pr.text</span></div>
+                    <div class="col-md-4"><small class="text-muted d-block">Due Date</small>@Model.DueDate.ToString("dd MMM yyyy")</div>
+                    <div class="col-md-4"><small class="text-muted d-block">Type</small><span class="badge bg-soft-dark text-dark">@Model.Category</span></div>
+                    <div class="col-md-4"><small class="text-muted d-block">Corporation</small>@Model.CorporationName</div>
+                    <div class="col-md-4"><small class="text-muted d-block">Created By</small>@Model.CreatedByName</div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.Description))
+                {
+                    <p class="mb-3"><small class="text-muted d-block">Description</small>@Model.Description</p>
+                }
+
+                <!-- Progress -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span class="text-muted fw-medium">My Progress</span>
+                        <span class="fw-semibold"><span id="progress-label">@Model.ProgressPercent</span>%</span>
+                    </div>
+                    <div class="progress" style="height:10px;">
+                        <div class="progress-bar bg-primary" id="progress-bar" style="width:@(Model.ProgressPercent)%"></div>
+                    </div>
+                </div>
+
+                <hr />
+
+                @if (Model.Category == TaskCategory.Point)
+                {
+                    <h6 class="fw-semibold mb-2"><i class="bx bx-list-check me-1"></i>Checklist</h6>
+                    <div class="list-group">
+                        @foreach (var p in Model.Points)
+                        {
+                            <label class="list-group-item d-flex align-items-center gap-2">
+                                <input class="form-check-input mt-0 point-check" type="checkbox"
+                                       data-id="@p.PointStatusId" @(p.IsCompleted ? "checked" : "") />
+                                <span class="@(p.IsCompleted ? "text-decoration-line-through text-muted" : "")">@p.Description</span>
+                            </label>
+                        }
+                    </div>
+                }
+                else if (Model.Category == TaskCategory.Counter)
+                {
+                    <h6 class="fw-semibold mb-2"><i class="bx bx-line-chart me-1"></i>Update Progress</h6>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-outline-secondary" type="button" id="counter-minus"><i class="bx bx-minus"></i></button>
+                        <input type="number" class="form-control text-center" id="counter-input" style="max-width:120px;"
+                               value="@(Model.CompletedCount ?? 0)" min="0" max="@Model.TargetCount" />
+                        <button class="btn btn-outline-secondary" type="button" id="counter-plus"><i class="bx bx-plus"></i></button>
+                        <span class="text-muted">of <strong>@Model.TargetCount</strong></span>
+                        <button class="btn btn-primary ms-2" type="button" id="counter-save"><i class="bx bx-save me-1"></i>Save</button>
+                    </div>
+                }
+                else
+                {
+                    <h6 class="fw-semibold mb-2"><i class="bx bx-check-circle me-1"></i>Completion</h6>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="done-switch"
+                               @(Model.MyStatus == WorkTaskStatus.Completed ? "checked" : "") style="transform:scale(1.4);" />
+                        <label class="form-check-label ms-2" for="done-switch" id="done-label">
+                            @(Model.MyStatus == WorkTaskStatus.Completed ? "Completed" : "Mark as done")
+                        </label>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        @await Html.PartialAsync("_CommentsChat", panel)
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const taskId = @Model.WorkTaskId;
+        const token  = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        function setProgress(pct) {
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('progress-label').textContent = pct;
+        }
+
+        function post(url, data) {
+            data.append('__RequestVerificationToken', token);
+            return fetch(url, { method: 'POST', body: data }).then(r => r.json());
+        }
+
+        // Point checklist
+        document.querySelectorAll('.point-check').forEach(chk => {
+            chk.addEventListener('change', function () {
+                const data = new FormData();
+                data.append('workTaskId', taskId);
+                data.append('pointStatusId', this.dataset.id);
+                const label = this.nextElementSibling;
+                post('/Task/TogglePoint', data).then(res => {
+                    if (res.success) {
+                        setProgress(res.progressPercent);
+                        label.classList.toggle('text-decoration-line-through', this.checked);
+                        label.classList.toggle('text-muted', this.checked);
+                    } else {
+                        this.checked = !this.checked;
+                        toastr.error(res.message || 'Failed.', 'Error');
+                    }
+                }).catch(() => { this.checked = !this.checked; toastr.error('Error', 'Error'); });
+            });
+        });
+
+        // Counter
+        const counterInput = document.getElementById('counter-input');
+        if (counterInput) {
+            const max = @(Model.TargetCount ?? 0);
+            document.getElementById('counter-minus').addEventListener('click', () => {
+                counterInput.value = Math.max(0, parseInt(counterInput.value || '0') - 1);
+            });
+            document.getElementById('counter-plus').addEventListener('click', () => {
+                counterInput.value = Math.min(max, parseInt(counterInput.value || '0') + 1);
+            });
+            document.getElementById('counter-save').addEventListener('click', function () {
+                const data = new FormData();
+                data.append('workTaskId', taskId);
+                data.append('value', counterInput.value || '0');
+                post('/Task/UpdateCounter', data).then(res => {
+                    if (res.success) { setProgress(res.progressPercent); toastr.success('Progress updated.', 'Saved'); }
+                    else toastr.error(res.message || 'Failed.', 'Error');
+                }).catch(() => toastr.error('Error', 'Error'));
+            });
+        }
+
+        // Normal done switch
+        const doneSwitch = document.getElementById('done-switch');
+        if (doneSwitch) {
+            doneSwitch.addEventListener('change', function () {
+                const data = new FormData();
+                data.append('workTaskId', taskId);
+                post('/Task/ToggleDone', data).then(res => {
+                    if (res.success) {
+                        setProgress(res.progressPercent);
+                        document.getElementById('done-label').textContent =
+                            res.assignmentStatus === 'Completed' ? 'Completed' : 'Mark as done';
+                    } else { this.checked = !this.checked; toastr.error(res.message || 'Failed.', 'Error'); }
+                }).catch(() => { this.checked = !this.checked; toastr.error('Error', 'Error'); });
+            });
+        }
+    </script>
+}

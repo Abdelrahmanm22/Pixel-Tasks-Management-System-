@@ -1,0 +1,152 @@
+@model CommentsPanelViewModel
+@using Tasks.Domain.Enums
+
+<div class="card mb-0">
+    <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between py-3">
+        <h5 class="card-title mb-0 fw-semibold">
+            <i class="bx bx-chat me-2 text-primary"></i>Discussion
+        </h5>
+        <span class="badge bg-soft-primary text-primary">@Model.Comments.Count</span>
+    </div>
+
+    <div class="card-body">
+
+        @* Admin-only assignee thread selector *@
+        @if (Model.IsAdminView && Model.Assignees.Any())
+        {
+            <div class="mb-3">
+                <label class="form-label small text-muted mb-1">Conversation with</label>
+                <select id="thread-selector" class="form-select form-select-sm">
+                    @foreach (var a in Model.Assignees)
+                    {
+                        if (a.AssignmentId == Model.TaskAssignmentId)
+                        {
+                            <option value="@a.AssignmentId" selected>@a.UserName</option>
+                        }
+                        else
+                        {
+                            <option value="@a.AssignmentId">@a.UserName</option>
+                        }
+                    }
+                </select>
+            </div>
+        }
+        else if (Model.IsAdminView && !Model.Assignees.Any())
+        {
+            <div class="alert alert-info py-2 small mb-3">No assignees yet — assign employees to start a conversation.</div>
+        }
+
+        @* Message list *@
+        <div id="chat-messages" class="chat-conversation"
+             style="max-height: 380px; overflow-y: auto;" data-simplebar>
+            <ul class="list-unstyled mb-0" id="chat-list">
+                @foreach (var c in Model.Comments)
+                {
+                    <li class="@(c.IsMine ? "right" : "")">
+                        <div class="conversation-list">
+                            <div class="ctext-wrap">
+                                <div class="conversation-name">@c.UserName</div>
+                                @if (c.Type == CommentType.Text)
+                                {
+                                    <p class="mb-1">@c.Content</p>
+                                }
+                                else if (c.Type == CommentType.Image)
+                                {
+                                    <a href="@c.FileUrl" target="_blank">
+                                        <img src="@c.FileUrl" alt="image" class="rounded img-fluid"
+                                             style="max-height: 180px;" />
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a href="@c.FileUrl" target="_blank" class="text-reset">
+                                        <i class="bx bx-file me-1"></i> Download attachment
+                                    </a>
+                                }
+                                <p class="chat-time mb-0">
+                                    <i class="bx bx-time-five align-middle me-1"></i>@c.CreatedAt.ToString("dd MMM yyyy HH:mm")
+                                </p>
+                            </div>
+                        </div>
+                    </li>
+                }
+            </ul>
+            @if (!Model.Comments.Any())
+            {
+                <div class="text-center text-muted py-4">
+                    <i class="bx bx-message-dots fs-3 d-block mb-1"></i>
+                    No messages yet. Start the conversation.
+                </div>
+            }
+        </div>
+
+        @* Send form — only shown when there is a valid thread *@
+        @if (Model.TaskAssignmentId > 0)
+        {
+            <div class="border-top mt-3 pt-3">
+                <form method="post" action="/Task/AddComment" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="workTaskId" value="@Model.WorkTaskId" />
+                    <input type="hidden" name="taskAssignmentId" value="@Model.TaskAssignmentId" />
+                    <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+
+                    <div id="chat-file-preview" class="small text-muted mb-2 d-none">
+                        <i class="bx bx-paperclip me-1"></i><span id="chat-file-name"></span>
+                        <a href="javascript:void(0);" id="chat-file-clear" class="text-danger ms-2">remove</a>
+                    </div>
+
+                    <div class="input-group">
+                        <button class="btn btn-light" type="button" id="chat-attach-btn" title="Attach file/image">
+                            <i class="bx bx-paperclip"></i>
+                        </button>
+                        <input type="file" id="chat-file" name="file" class="d-none"
+                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
+                        <input type="text" id="chat-text" name="content" class="form-control" placeholder="Type a message..." />
+                        <button class="btn btn-primary" type="submit">
+                            <i class="bx bx-send"></i> Send
+                        </button>
+                    </div>
+                </form>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    (function () {
+        // Scroll to bottom of messages on load
+        var messages = document.getElementById('chat-messages');
+        if (messages) messages.scrollTop = messages.scrollHeight;
+
+        // File attachment preview
+        var attachBtn = document.getElementById('chat-attach-btn');
+        var fileInput = document.getElementById('chat-file');
+        var preview   = document.getElementById('chat-file-preview');
+        var fileName  = document.getElementById('chat-file-name');
+        var fileClear = document.getElementById('chat-file-clear');
+
+        if (attachBtn && fileInput) {
+            attachBtn.addEventListener('click', function () { fileInput.click(); });
+            fileInput.addEventListener('change', function () {
+                if (fileInput.files.length) {
+                    fileName.textContent = fileInput.files[0].name;
+                    preview.classList.remove('d-none');
+                }
+            });
+            fileClear.addEventListener('click', function () {
+                fileInput.value = '';
+                preview.classList.add('d-none');
+            });
+        }
+
+        // Admin thread selector — navigate to the selected employee's thread
+        var selector = document.getElementById('thread-selector');
+        if (selector) {
+            selector.addEventListener('change', function () {
+                var url = new URL(window.location.href);
+                url.searchParams.set('assignmentId', this.value);
+                window.location.href = url.toString();
+            });
+        }
+    })();
+</script>

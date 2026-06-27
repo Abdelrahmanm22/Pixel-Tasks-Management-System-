@@ -1,0 +1,124 @@
+@model WorkTaskViewModel
+@using Tasks.Domain.Enums
+@{
+    ViewData["Title"] = "Task Details";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var assignments = ViewBag.Assignments as List<AssignmentProgressViewModel> ?? new();
+    var panel = ViewBag.CommentsPanel as CommentsPanelViewModel ?? new CommentsPanelViewModel { WorkTaskId = Model.Id };
+
+    (string cls, string text) StatusBadge(WorkTaskStatus s) => s switch
+    {
+        WorkTaskStatus.Pending    => ("bg-soft-secondary text-secondary", "Pending"),
+        WorkTaskStatus.InProgress => ("bg-soft-info text-info", "In Progress"),
+        WorkTaskStatus.Completed  => ("bg-soft-success text-success", "Completed"),
+        _ => ("bg-soft-secondary text-secondary", s.ToString())
+    };
+}
+
+<div class="row">
+    <div class="col-xl-7">
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center py-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    <i class="bx bx-detail me-2 text-primary"></i>@Model.Title
+                    <span class="badge bg-soft-primary text-primary ms-2">@Model.Code</span>
+                </h5>
+                <div>
+                    <permission required="@Permissions.Tasks.Create">
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-success"><i class="bx bx-edit me-1"></i>Edit</a>
+                    </permission>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary"><i class="bx bx-arrow-back me-1"></i>Back</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6"><small class="text-muted d-block">Type</small><span class="badge bg-soft-dark text-dark">@Model.TaskCategory</span> @Model.TaskTypeName</div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block">Status</small>
+                        @{ var st = StatusBadge(Model.Status); }
+                        <span class="badge @st.cls font-size-12">@st.text</span>
+                    </div>
+                    <div class="col-md-6"><small class="text-muted d-block">Corporation</small>@Model.CorporationName</div>
+                    <div class="col-md-6"><small class="text-muted d-block">Section</small>@(Model.SectionName ?? "All sections")</div>
+                    <div class="col-md-6"><small class="text-muted d-block">Request Date</small>@Model.RequestDate.ToString("dd MMM yyyy")</div>
+                    <div class="col-md-6"><small class="text-muted d-block">Due Date</small>@Model.DueDate.ToString("dd MMM yyyy")</div>
+                    <div class="col-md-6"><small class="text-muted d-block">Created By</small>@Model.CreatedByName</div>
+                    @if (Model.TaskCategory == TaskCategory.Counter)
+                    {
+                        <div class="col-md-6"><small class="text-muted d-block">Target Count</small>@Model.TargetCount</div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Description))
+                    {
+                        <div class="col-12"><small class="text-muted d-block">Description</small>@Model.Description</div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Notes))
+                    {
+                        <div class="col-12"><small class="text-muted d-block">Notes</small>@Model.Notes</div>
+                    }
+                </div>
+
+                @if (Model.TaskCategory == TaskCategory.Point && Model.Points.Any())
+                {
+                    <hr />
+                    <h6 class="fw-semibold mb-2"><i class="bx bx-list-check me-1"></i>Checklist Points</h6>
+                    <ol class="mb-0">
+                        @foreach (var p in Model.Points.OrderBy(p => p.Order))
+                        {
+                            <li>@p.Description</li>
+                        }
+                    </ol>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <h5 class="card-title mb-0 fw-semibold"><i class="bx bx-group me-2 text-primary"></i>Assignees Progress</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Employee</th><th width="120">Status</th><th>Progress</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var a in assignments)
+                            {
+                                var ast = StatusBadge(a.Status);
+                                <tr>
+                                    <td class="fw-medium">@a.UserName</td>
+                                    <td><span class="badge @ast.cls">@ast.text</span></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height:6px;">
+                                                <div class="progress-bar bg-primary" style="width:@(a.ProgressPercent)%"></div>
+                                            </div>
+                                            <small class="text-muted" style="min-width:90px;">
+                                                @if (Model.TaskCategory == TaskCategory.Counter)
+                                                {
+                                                    @($"{a.CompletedCount ?? 0} / {a.TargetCount}")
+                                                }
+                                                else if (Model.TaskCategory == TaskCategory.Point)
+                                                {
+                                                    @($"{a.PointsDone} / {a.PointsTotal}")
+                                                }
+                                                else
+                                                {
+                                                    @($"{a.ProgressPercent}%")
+                                                }
+                                            </small>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        @await Html.PartialAsync("_CommentsChat", panel)
+    </div>
+</div>

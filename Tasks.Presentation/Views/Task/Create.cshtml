@@ -1,0 +1,256 @@
+@model WorkTaskViewModel
+@using Tasks.Domain.Enums
+
+@{
+    ViewData["Title"] = "Create Task";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link href="~/back/assets/libs/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-11">
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-semibold">
+                        <i class="bx bx-plus-circle me-2 text-primary"></i>New Task
+                    </h5>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary waves-effect">
+                        <i class="bx bx-arrow-back me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <form asp-action="Create" method="post" id="create-form" novalidate>
+                    @Html.AntiForgeryToken()
+
+                    <div class="row g-3">
+                        <!-- Title -->
+                        <div class="col-md-8">
+                            <label asp-for="Title" class="form-label fw-medium">Title <span class="text-danger">*</span></label>
+                            <input asp-for="Title" class="form-control" placeholder="e.g. Prepare monthly report" />
+                            <span asp-validation-for="Title" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Priority -->
+                        <div class="col-md-4">
+                            <label asp-for="Priority" class="form-label fw-medium">Priority <span class="text-danger">*</span></label>
+                            <select asp-for="Priority" asp-items="Html.GetEnumSelectList<PriorityLevel>()" class="form-select"></select>
+                            <span asp-validation-for="Priority" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Task Type -->
+                        <div class="col-md-4">
+                            <label asp-for="TaskTypeId" class="form-label fw-medium">Task Type <span class="text-danger">*</span></label>
+                            <select asp-for="TaskTypeId" asp-items="Model.TaskTypes" class="form-select" id="tasktype-select">
+                                <option value="">— Select Type —</option>
+                            </select>
+                            <span asp-validation-for="TaskTypeId" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Request Date -->
+                        <div class="col-md-4">
+                            <label asp-for="RequestDate" class="form-label fw-medium">Request Date <span class="text-danger">*</span></label>
+                            <input asp-for="RequestDate" type="date" class="form-control" />
+                            <span asp-validation-for="RequestDate" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Due Date -->
+                        <div class="col-md-4">
+                            <label asp-for="DueDate" class="form-label fw-medium">Due Date <span class="text-danger">*</span></label>
+                            <input asp-for="DueDate" type="date" class="form-control" />
+                            <span asp-validation-for="DueDate" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Counter target (dynamic) -->
+                        <div class="col-md-4 d-none" id="counter-block">
+                            <label asp-for="TargetCount" class="form-label fw-medium">Target Count <span class="text-danger">*</span></label>
+                            <input asp-for="TargetCount" type="number" min="1" class="form-control" placeholder="e.g. 100" />
+                            <span asp-validation-for="TargetCount" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Points editor (dynamic) -->
+                        <div class="col-12 d-none" id="points-block">
+                            <label class="form-label fw-medium">Checklist Points <span class="text-danger">*</span></label>
+                            <div class="border rounded p-3">
+                                <div id="points-list"></div>
+                                <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-point-btn">
+                                    <i class="bx bx-plus me-1"></i> Add Point
+                                </button>
+                            </div>
+                            <span asp-validation-for="Points" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <div class="col-12"><hr class="my-1" /></div>
+
+                        <!-- Corporation -->
+                        <div class="col-md-6">
+                            <label asp-for="CorporationId" class="form-label fw-medium">Corporation <span class="text-danger">*</span></label>
+                            <select asp-for="CorporationId" asp-items="Model.Corporations" class="form-select" id="corporation-select">
+                                <option value="">— Select Corporation —</option>
+                            </select>
+                            <span asp-validation-for="CorporationId" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Section -->
+                        <div class="col-md-6">
+                            <label asp-for="SectionId" class="form-label fw-medium">Section <small class="text-muted">(optional — leave empty for all)</small></label>
+                            <select asp-for="SectionId" class="form-select" id="section-select">
+                                <option value="">— All Sections —</option>
+                            </select>
+                        </div>
+
+                        <!-- Assignees -->
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label fw-medium mb-0">Assign Employees <span class="text-danger">*</span></label>
+                                <button type="button" class="btn btn-sm btn-link p-0" id="select-all-btn">Select all</button>
+                            </div>
+                            <select multiple name="SelectedUserIds" id="employee-select" class="form-select" style="width:100%;">
+                                @foreach (var emp in Model.AvailableEmployees)
+                                {
+                                    <option value="@emp.Id" selected="@emp.IsSelected">@emp.FullName</option>
+                                }
+                            </select>
+                            <small class="text-muted mt-1 d-block">Pick a corporation first. Section narrows the list; leave it empty to choose from all employees in the corporation.</small>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="col-12">
+                            <label asp-for="Description" class="form-label fw-medium">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="3" placeholder="What needs to be done..."></textarea>
+                            <span asp-validation-for="Description" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-12">
+                            <label asp-for="Notes" class="form-label fw-medium">Notes</label>
+                            <textarea asp-for="Notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+                            <span asp-validation-for="Notes" class="text-danger small mt-1 d-block"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a asp-action="Index" class="btn btn-outline-secondary waves-effect"><i class="bx bx-x me-1"></i> Cancel</a>
+                        <button type="submit" class="btn btn-primary waves-effect waves-light" id="save-btn">
+                            <i class="bx bx-save me-1"></i> Save Task
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/back/assets/libs/select2/js/select2.min.js"></script>
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <script>
+        const categoryMap = @Html.Raw(Json.Serialize(Model.TaskTypeCategoryMap));
+        const CAT_POINT = @((int)TaskCategory.Point);
+        const CAT_COUNTER = @((int)TaskCategory.Counter);
+
+        // ── Dynamic blocks by task type ────────────────────────────────
+        function toggleTypeBlocks() {
+            const id  = parseInt(document.getElementById('tasktype-select').value || '0');
+            const cat = categoryMap[id];
+            document.getElementById('counter-block').classList.toggle('d-none', cat !== CAT_COUNTER);
+            document.getElementById('points-block').classList.toggle('d-none', cat !== CAT_POINT);
+            if (cat === CAT_POINT && document.querySelectorAll('#points-list .point-row').length === 0) addPoint();
+        }
+
+        // ── Points editor ─────────────────────────────────────────────
+        function reindexPoints() {
+            document.querySelectorAll('#points-list .point-row').forEach((row, i) => {
+                row.querySelector('.point-id').name   = `Points[${i}].Id`;
+                row.querySelector('.point-desc').name = `Points[${i}].Description`;
+            });
+        }
+        function addPoint(id = 0, desc = '') {
+            const row = document.createElement('div');
+            row.className = 'input-group mb-2 point-row';
+            row.innerHTML = `
+                <span class="input-group-text"><i class="bx bx-list-check"></i></span>
+                <input type="hidden" class="point-id" value="${id}" />
+                <input type="text" class="form-control point-desc" placeholder="Describe this step..." value="${desc.replace(/"/g, '&quot;')}" />
+                <button type="button" class="btn btn-outline-danger remove-point"><i class="bx bx-trash"></i></button>`;
+            document.getElementById('points-list').appendChild(row);
+            reindexPoints();
+        }
+        document.getElementById('add-point-btn').addEventListener('click', () => addPoint());
+        document.getElementById('points-list').addEventListener('click', function (e) {
+            if (e.target.closest('.remove-point')) {
+                e.target.closest('.point-row').remove();
+                reindexPoints();
+            }
+        });
+
+        document.getElementById('tasktype-select').addEventListener('change', toggleTypeBlocks);
+
+        // ── Select2 employee picker ───────────────────────────────────
+        const $emp = $('#employee-select').select2({
+            placeholder: 'Select employees...',
+            allowClear: true,
+            width: '100%'
+        });
+
+        function loadEmployees(preserve) {
+            const corpId = document.getElementById('corporation-select').value;
+            const secId  = document.getElementById('section-select').value;
+            if (!corpId) { $emp.empty().trigger('change'); return; }
+
+            $.get('/Task/GetAvailableEmployees', { corporationId: corpId, sectionId: secId || null }, function (data) {
+                const selected = preserve ? $emp.val() || [] : [];
+                $emp.empty();
+                data.forEach(e => {
+                    const opt = new Option(e.fullName, e.id, false, selected.includes(e.id));
+                    $emp.append(opt);
+                });
+                $emp.trigger('change');
+            });
+        }
+
+        // ── Cascading corporation → section ───────────────────────────
+        document.getElementById('corporation-select').addEventListener('change', function () {
+            const corpId = this.value;
+            const secSel = document.getElementById('section-select');
+            secSel.innerHTML = '<option value="">— All Sections —</option>';
+            if (corpId) {
+                $.get('/Task/GetSectionsByCorporation', { corporationId: corpId }, function (data) {
+                    data.forEach(s => secSel.innerHTML += `<option value="${s.value}">${s.text}</option>`);
+                });
+            }
+            loadEmployees(false);
+        });
+        document.getElementById('section-select').addEventListener('change', () => loadEmployees(true));
+
+        document.getElementById('select-all-btn').addEventListener('click', function () {
+            $emp.find('option').prop('selected', true);
+            $emp.trigger('change');
+        });
+
+        // ── Submit ────────────────────────────────────────────────────
+        document.getElementById('create-form').addEventListener('submit', function (e) {
+            const cat = categoryMap[parseInt(document.getElementById('tasktype-select').value || '0')];
+            if (cat === CAT_POINT && document.querySelectorAll('#points-list .point-desc').length === 0) {
+                e.preventDefault();
+                toastr.warning('Add at least one checklist point.', 'Point task');
+                return;
+            }
+            if (($emp.val() || []).length === 0) {
+                e.preventDefault();
+                toastr.warning('Assign the task to at least one employee.', 'Assignees');
+                return;
+            }
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+        });
+
+        toggleTypeBlocks();
+    </script>
+}

@@ -35,6 +35,12 @@ namespace Tasks.Repository.Data.Configrations
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // NoAction: WorkTask→Assignment→Comment AND WorkTask→Comment would be a second cascade path.
+            builder.HasOne(x => x.TaskAssignment)
+                .WithMany()
+                .HasForeignKey(x => x.TaskAssignmentId)
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

@@ -15,11 +15,13 @@ namespace Tasks.Domain.Models
         public DateTime CreatedAt  { get; set; } = DateTime.UtcNow;
 
         // FKs
-        public int WorkTaskId   { get; set; }
-        public string UserId    { get; set; } = string.Empty;
+        public int WorkTaskId        { get; set; }
+        public string UserId         { get; set; } = string.Empty;
+        public int TaskAssignmentId  { get; set; }
 
         // Navigation
-        public WorkTask WorkTask { get; set; } = null!;
-        public AppUser User      { get; set; } = null!;
+        public WorkTask WorkTask            { get; set; } = null!;
+        public AppUser User                 { get; set; } = null!;
+        public TaskAssignment TaskAssignment { get; set; } = null!;
     }
 }

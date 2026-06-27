@@ -42,10 +42,10 @@ Tasks.Services  (Business Logic — references Tasks.Domain)
     └── CodeGeneration/CodeGeneratorService.cs  (generates sequential codes like PXC-000001)
 
 Tasks.Presentation  (MVC Web App — references Tasks.Repository + Tasks.Services)
-    ├── Controllers/       (AccountController, HomeController, CorporationController, SectionController, TaskTypeController, UserController)
-    ├── ViewModels/        (LoginViewModel, CorporationViewModel, SectionViewModel, TaskTypeViewModel, UserViewModel, AvailableEmployeeViewModel, ErrorViewModel)
+    ├── Controllers/       (AccountController, HomeController, CorporationController, SectionController, TaskTypeController, UserController, TaskController)
+    ├── ViewModels/        (LoginViewModel, CorporationViewModel, SectionViewModel, TaskTypeViewModel, UserViewModel, AvailableEmployeeViewModel, WorkTaskViewModel, TaskPointViewModel, TaskCommentViewModel, CommentsPanelViewModel, MyTaskViewModel, TaskWorkViewModel, AssignmentProgressViewModel, ErrorViewModel)
     ├── Views/             (Razor views organized per controller + Shared layout partials)
-    ├── MappingProfiles/   (CorporationProfile, SectionProfile, TaskTypeProfile)
+    ├── MappingProfiles/   (CorporationProfile, SectionProfile, TaskTypeProfile, WorkTaskProfile)
     ├── Authorization/     (PermissionRequirement, PermissionAuthorizationHandler, PermissionPolicyProvider, AppUserClaimsPrincipalFactory)
     ├── TagHelpers/        (PermissionTagHelper — <permission required="..."> suppresses output for unauthorized users)
     ├── Helpers/           (DocumentSettings — file upload/delete utility)
@@ -208,6 +208,8 @@ Generates sequential unique codes for any `ICodedEntity`. Entity-agnostic — th
 | Entity | Prefix | Example Code |
 |---|---|---|
 | Corporation | `PXC` | `PXC-000001` |
+| Section | `PXS` | `PXS-000001` |
+| WorkTask | `PXW` | `PXW-000001` |
 
 Padding: 6-digit zero-padded for 1–999,999; plain number above that.
 
@@ -227,6 +229,11 @@ Padding: 6-digit zero-padded for 1–999,999; plain number above that.
 | `TaskTypeSpec()` | `TaskType` | Get all task types |
 | `TaskTypeSpec(int id)` | `TaskType` | Get task type by ID |
 | `TaskTypeByNameSpec(string name)` | `TaskType` | Find by exact name — remote uniqueness validation |
+| `WorkTaskSpec()` | `WorkTask` | All tasks (admin Index) — includes TaskType, Corporation, Section, CreatedBy, Assignments; ordered by RequestDate desc |
+| `WorkTaskSpec(int id)` | `WorkTask` | Single task full graph (Details/Edit) — includes Points, Assignments.User, Assignments.PointStatuses, Comments.User |
+| `WorkTaskByUserSpec(string userId)` | `WorkTask` | Tasks the user is assigned to (employee "My Tasks") |
+| `TaskAssignmentSpec(int workTaskId, string userId)` | `TaskAssignment` | A user's assignment for a task (includes WorkTask.Points, PointStatuses.TaskPoint) |
+| `TaskCommentSpec(int workTaskId)` | `TaskComment` | All comments for a task, oldest-first, includes User |
 
 ---
 
@@ -242,10 +249,11 @@ _More services to be added as features are built._
 
 ## AutoMapper Configuration
 
-Defined in `Tasks.Presentation/MappingProfiles/CorporationProfile.cs`:
+Profiles in `Tasks.Presentation/MappingProfiles/` (all registered in `Program.cs`): `CorporationProfile`, `SectionProfile`, `TaskTypeProfile`, `WorkTaskProfile`.
 
 - `Corporation → CorporationViewModel` (for display)
 - `CorporationViewModel → Corporation` (for Create/Edit) — `Code` is **ignored** (auto-generated, not mapped from VM)
+- **`WorkTaskProfile`**: `WorkTask ↔ WorkTaskViewModel` (maps display fields TaskTypeName/TaskCategory/CorporationName/SectionName/CreatedByName/AssigneeCount; ignores Code, Status, navigation, select lists, Points, SelectedUserIds — those are set manually in the controller). Also `TaskComment → TaskCommentViewModel`.
 
 ---
 
@@ -397,6 +405,27 @@ Default route: `{controller=Account}/{action=Login}/{id?}` — starts on Login p
 | `ToggleActive` | POST | Activate/deactivate user; AJAX JSON response |
 | `GetSectionsByCorporation` | GET | Returns sections for a corporation dropdown (AJAX) |
 
+### TaskController (`[Authorize]` — per-action permission policies)
+The Task feature. Assignments are **materialized per-employee at creation time** (one `TaskAssignment` row each). Task type is **immutable after creation**. Overall status is **auto-computed** from assignments (see business rules). File uploads land in `wwwroot/Files/TaskComments`.
+
+| Action | Method | Policy | Description |
+|---|---|---|---|
+| `Index` | GET | `Tasks.ViewAll` | Admin DataTable of all tasks |
+| `Details` | GET | `Tasks.ViewAll` | Admin view: info + per-assignee progress table + comments chat |
+| `Create` | GET/POST | `Tasks.Create` | Create form; POST in a transaction → generate `PXW` code → save WorkTask → Points (Point type) → one TaskAssignment per employee → seed TaskPointStatus per (assignment×point) |
+| `Edit` | GET/POST | `Tasks.Create` | Descriptive fields free; reconcile assignees & points (removing one deletes its progress); type locked |
+| `Delete` | POST | `Tasks.Create` | AJAX JSON; deletes TaskPointStatuses first (NoAction FK) then cascades the rest |
+| `MyTasks` | GET | `Tasks.ViewAssigned` | Employee card list of own tasks with progress % |
+| `Work` | GET | `Tasks.ViewAssigned` | Employee working view (points checklist / counter bar / Normal toggle) + chat. Guards assignment ownership |
+| `TogglePoint` | POST | `Tasks.UpdateProgress` | AJAX flip a TaskPointStatus, recompute statuses, return progress |
+| `UpdateCounter` | POST | `Tasks.UpdateProgress` | AJAX set CompletedCount (clamped), recompute, return progress |
+| `ToggleDone` | POST | `Tasks.UpdateProgress` | AJAX Normal-type completion toggle |
+| `AddComment` | POST | `Tasks.Comment` | AJAX text/image/file (exactly one type); saved via `DocumentSettings.UplaodFile`; returns rendered comment |
+| `GetSectionsByCorporation` | GET | `Tasks.Create` | Sections-for-corporation dropdown (AJAX) |
+| `GetAvailableEmployees` | GET | `Tasks.Create` | Active **employees** (Employee role) in corp filtered by optional section (AJAX) |
+
+Status recompute helpers (`RecomputeAssignmentStatus` / `RecomputeTaskStatus`): Point assignment Completed when all its points checked; Counter when CompletedCount ≥ TargetCount; Normal set explicitly by `ToggleDone`. Task = Completed when all assignments Completed, InProgress when any started, else Pending.
+
 ### Views Structure
 
 ```
@@ -406,11 +435,13 @@ Views/
 ├── Section/                       (Index, Create, Edit, Details)
 ├── TaskType/                      (Index, Create, Edit, Details)
 ├── User/                          (Index, Create, Edit)
+├── Task/                          (Index, Create, Edit, Details — admin; MyTasks, Work — employee)
 ├── Home/Index.cshtml, Privacy.cshtml
 └── Shared/
     ├── _Layout.cshtml             (Main Skote admin layout: sidebar + nav + content + footer)
     ├── _AuthLayout.cshtml         (Login/register page layout — no sidebar)
-    ├── _Sidebar.cshtml            (Left nav — menu items gated by <permission> TagHelper)
+    ├── _Sidebar.cshtml            (Left nav — Tasks + My Tasks menus gated by <permission> TagHelper)
+    ├── _CommentsChat.cshtml       (Shared chat panel — used by Task/Details + Task/Work; AJAX to AddComment)
     ├── _Nav.cshtml                (Top navbar)
     ├── _Head.cshtml               (CSS includes)
     ├── _Scripts.cshtml            (JS includes)
@@ -419,6 +450,8 @@ Views/
     ├── _RightSideBar.cshtml       (Skote theme settings sidebar)
     └── _ValidationScriptsPartial.cshtml
 ```
+
+> Task Create/Edit use **Select2** (from `wwwroot/back/assets/libs/select2`) for the tag-style employee multi-select, a dynamic-by-type form (Counter target / Point checklist editor), and cascading Corporation→Section dropdowns.
 
 ---
 
@@ -466,7 +499,14 @@ No policy registration needed — `PermissionPolicyProvider` auto-wires it.
 - **`SectionViewModel`** — `Id`, `Code?`, `Name`, `CorporationId`, `Email?`, `Fax?`, `Phone?`, `Address?`, `Telex?`, `Notes?`, `SelectedUserIds`, display helpers (`CorporationName`, `MemberCount`, `Corporations`, `AvailableEmployees`)
 - **`TaskTypeViewModel`** — `Id`, `Name` (required, unique), `Category` (TaskCategory enum)
 - **`UserViewModel`** — `Id?`, `FirstName`, `LastName`, `UserName`, `Email`, `PhoneNumber?`, `Gender`, `Role` (required), `CorporationId?`, `SectionId?`, `IsActive`, `Password?`/`ConfirmPassword?` (create-only / optional on edit), display helpers (`CorporationName`, `SectionName`, `Corporations`, `Sections`, `Roles`)
-- **`AvailableEmployeeViewModel`** — `Id`, `FullName`, `Email`, `IsSelected` — used in Section create/edit employee picker
+- **`AvailableEmployeeViewModel`** — `Id`, `FullName`, `Email`, `IsSelected` — used in Section + Task create/edit employee pickers
+- **`WorkTaskViewModel`** — `Id`, `Code?`, `Title`, `Description?`, `Notes?`, `RequestDate`, `DueDate`, `Priority`, `TaskTypeId`, `CorporationId`, `SectionId?`, `TargetCount?`, `SelectedUserIds`, `Points` (List<TaskPointViewModel>), display helpers (`Status`, `TaskTypeName`, `TaskCategory`, `CorporationName`, `SectionName`, `CreatedByName`, `AssigneeCount`), select lists (`TaskTypes`, `Corporations`, `Sections`, `AvailableEmployees`), `TaskTypeCategoryMap` (TaskTypeId→category int, drives the dynamic form)
+- **`TaskPointViewModel`** — `Id`, `Description` (required), `Order`
+- **`TaskCommentViewModel`** — `Id`, `Content?`, `FileUrl?`, `Type` (CommentType), `CreatedAt`, `UserId`, `UserName`, `UserImageUrl?`, `IsMine`
+- **`CommentsPanelViewModel`** — `WorkTaskId`, `Comments` — model for the shared `_CommentsChat` partial
+- **`MyTaskViewModel`** — slim employee-list row: `Id`, `Code`, `Title`, `Category`, `Priority`, `DueDate`, `MyStatus`, `CorporationName`, `ProgressPercent`
+- **`TaskWorkViewModel`** — employee work view: task header + `AssignmentId`, `MyStatus`, `TargetCount?`/`CompletedCount?`, `Points` (List<TaskPointWorkViewModel> with `PointStatusId`/`Order`/`Description`/`IsCompleted`), `ProgressPercent`, `Comments`
+- **`AssignmentProgressViewModel`** — per-assignee row on admin Details: `UserName`, `Status`, `ProgressPercent`, `CompletedCount?`, `TargetCount?`, `PointsDone`, `PointsTotal` (concrete type — anonymous types can't cross the runtime-compiled view assembly via ViewBag)
 - **`ErrorViewModel`** — `RequestId`
 
 ---
@@ -523,9 +563,16 @@ Pixel.Tasks/
 │       │   ├── SectionSpec.cs
 │       │   ├── SectionByNameSpec.cs
 │       │   └── SectionByCorporationSpec.cs
-│       └── TaskTypeSpec/
-│           ├── TaskTypeSpec.cs
-│           └── TaskTypeByNameSpec.cs
+│       ├── TaskTypeSpec/
+│       │   ├── TaskTypeSpec.cs
+│       │   └── TaskTypeByNameSpec.cs
+│       ├── WorkTaskSpec/
+│       │   ├── WorkTaskSpec.cs
+│       │   └── WorkTaskByUserSpec.cs
+│       ├── TaskAssignmentSpec/
+│       │   └── TaskAssignmentSpec.cs
+│       └── TaskCommentSpec/
+│           └── TaskCommentSpec.cs
 ├── Tasks.Repository/
 │   ├── Tasks.Repository.csproj
 │   ├── GenericRepository.cs
@@ -567,7 +614,8 @@ Pixel.Tasks/
     │   ├── CorporationController.cs
     │   ├── SectionController.cs
     │   ├── TaskTypeController.cs
-    │   └── UserController.cs
+    │   ├── UserController.cs
+    │   └── TaskController.cs
     ├── ViewModels/
     │   ├── LoginViewModel.cs
     │   ├── CorporationViewModel.cs
@@ -575,11 +623,19 @@ Pixel.Tasks/
     │   ├── TaskTypeViewModel.cs
     │   ├── UserViewModel.cs
     │   ├── AvailableEmployeeViewModel.cs
+    │   ├── WorkTaskViewModel.cs
+    │   ├── TaskPointViewModel.cs
+    │   ├── TaskCommentViewModel.cs
+    │   ├── CommentsPanelViewModel.cs
+    │   ├── MyTaskViewModel.cs
+    │   ├── TaskWorkViewModel.cs
+    │   ├── AssignmentProgressViewModel.cs
     │   └── ErrorViewModel.cs
     ├── MappingProfiles/
     │   ├── CorporationProfile.cs
     │   ├── SectionProfile.cs
-    │   └── TaskTypeProfile.cs
+    │   ├── TaskTypeProfile.cs
+    │   └── WorkTaskProfile.cs
     ├── Helpers/
     │   └── DocumentSettings.cs
     ├── Views/
@@ -591,7 +647,8 @@ Pixel.Tasks/
     │   ├── Section/Index.cshtml, Create.cshtml, Edit.cshtml, Details.cshtml
     │   ├── TaskType/Index.cshtml, Create.cshtml, Edit.cshtml, Details.cshtml
     │   ├── User/Index.cshtml, Create.cshtml, Edit.cshtml
-    │   └── Shared/ (_Layout, _AuthLayout, _Sidebar, _Nav, _Head, _Scripts, _Footer, _Notifications, _RightSideBar, _ValidationScriptsPartial, Error)
+    │   ├── Task/Index.cshtml, Create.cshtml, Edit.cshtml, Details.cshtml, MyTasks.cshtml, Work.cshtml
+    │   └── Shared/ (_Layout, _AuthLayout, _Sidebar, _CommentsChat, _Nav, _Head, _Scripts, _Footer, _Notifications, _RightSideBar, _ValidationScriptsPartial, Error)
     ├── Logs/
     └── wwwroot/ (Skote template: css/, js/, lib/, back/, favicon.ico)
 ```
@@ -667,6 +724,11 @@ Pixel.Tasks/
 **What went wrong:** `replace_file_content` silently failed to match content due to CRLF vs LF line ending mismatch in `Corporation.cs`.  
 **Root cause:** The file had mixed line endings; the replacement target string used LF but the file had CRLF.  
 **Correct approach:** When a targeted replace fails silently, verify the file content with `view_file` and use `write_to_file` with `Overwrite=true` as a fallback.
+
+### 2026-06-28 — DocumentSettings.UplaodFile throws DirectoryNotFoundException
+**What went wrong:** Uploading a file as a comment threw `System.IO.DirectoryNotFoundException` because `wwwroot/Files/TaskComments` did not exist on disk.  
+**Root cause:** `DocumentSettings.UplaodFile` constructs the folder path and immediately opens a `FileStream` without ever creating the directory first.  
+**Correct approach:** Call `Directory.CreateDirectory(FolderPath)` immediately after building `FolderPath` and before opening the stream — it is a no-op if the folder already exists, so it is always safe to include. This must be done for every new upload folder, not just `TaskComments`.
 
 <!-- 
 FORMAT FOR NEW ENTRIES:

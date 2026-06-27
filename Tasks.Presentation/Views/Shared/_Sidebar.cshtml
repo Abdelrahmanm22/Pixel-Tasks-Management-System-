@@ -16,10 +16,28 @@
                     </a>
                 </li>
 
+                <permission required="@Permissions.Tasks.ViewAll">
+                    <li class="menu-title">Tasks</li>
+                    <li>
+                        <a asp-controller="Task" asp-action="Index" class="waves-effect">
+                            <i class="bx bx-task"></i>
+                            <span>All Tasks</span>
+                        </a>
+                    </li>
+                    <permission required="@Permissions.Tasks.Create">
+                        <li>
+                            <a asp-controller="Task" asp-action="Create" class="waves-effect">
+                                <i class="bx bx-plus-circle"></i>
+                                <span>Create Task</span>
+                            </a>
+                        </li>
+                    </permission>
+                </permission>
+
                 <permission required="@Permissions.Tasks.ViewAssigned">
                     <li class="menu-title">My Tasks</li>
                     <li>
-                        <a href="#" class="waves-effect">
+                        <a asp-controller="Task" asp-action="MyTasks" class="waves-effect">
                             <i class="bx bx-task"></i>
                             <span>Assigned Tasks</span>
                         </a>

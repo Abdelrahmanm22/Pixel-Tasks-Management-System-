@@ -1,0 +1,160 @@
+@model IEnumerable<WorkTaskViewModel>
+@using Tasks.Domain.Enums
+
+@{
+    ViewData["Title"] = "Tasks";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@functions {
+    static (string cls, string text) PriorityBadge(PriorityLevel p) => p switch
+    {
+        PriorityLevel.Low      => ("bg-soft-success text-success", "Low"),
+        PriorityLevel.Medium   => ("bg-soft-warning text-warning", "Medium"),
+        PriorityLevel.High     => ("bg-soft-danger text-danger", "High"),
+        PriorityLevel.Critical => ("bg-danger text-white", "Critical"),
+        _ => ("bg-soft-secondary text-secondary", p.ToString())
+    };
+
+    static (string cls, string text) StatusBadge(WorkTaskStatus s) => s switch
+    {
+        WorkTaskStatus.Pending    => ("bg-soft-secondary text-secondary", "Pending"),
+        WorkTaskStatus.InProgress => ("bg-soft-info text-info", "In Progress"),
+        WorkTaskStatus.Completed  => ("bg-soft-success text-success", "Completed"),
+        _ => ("bg-soft-secondary text-secondary", s.ToString())
+    };
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title mb-0">
+                        <i class="bx bx-task me-2 text-primary"></i>Tasks
+                    </h4>
+                    <permission required="@Permissions.Tasks.Create">
+                        <a asp-action="Create" class="btn btn-primary waves-effect waves-light">
+                            <i class="bx bx-plus me-1"></i> Create Task
+                        </a>
+                    </permission>
+                </div>
+
+                <table id="tasks-table" class="table table-hover table-bordered align-middle w-100">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="120">Code</th>
+                            <th>Title</th>
+                            <th width="110">Type</th>
+                            <th width="100">Priority</th>
+                            <th width="160">Corporation</th>
+                            <th width="90" class="text-center">Assignees</th>
+                            <th width="120">Due Date</th>
+                            <th width="120">Status</th>
+                            <th width="130" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            var pr = PriorityBadge(item.Priority);
+                            var st = StatusBadge(item.Status);
+                            <tr id="row-@item.Id">
+                                <td>
+                                    <span class="badge bg-soft-primary text-primary font-size-12 fw-medium">@item.Code</span>
+                                </td>
+                                <td class="fw-semibold">@item.Title</td>
+                                <td><span class="badge bg-soft-dark text-dark">@item.TaskCategory</span></td>
+                                <td><span class="badge @pr.cls font-size-12">@pr.text</span></td>
+                                <td>
+                                    @item.CorporationName
+                                    @if (!string.IsNullOrEmpty(item.SectionName))
+                                    {
+                                        <small class="text-muted d-block">@item.SectionName</small>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-soft-info text-info font-size-12">@item.AssigneeCount</span>
+                                </td>
+                                <td>@item.DueDate.ToString("dd MMM yyyy")</td>
+                                <td><span class="badge @st.cls font-size-12">@st.text</span></td>
+                                <td class="text-center">
+                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-info" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <permission required="@Permissions.Tasks.Create">
+                                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-success" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger btn-delete"
+                                                data-id="@item.Id" data-name="@item.Title" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </permission>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/back/assets/libs/datatables.net/js/jquery.dataTables.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js"></script>
+
+    <script>
+        $('#tasks-table').DataTable({
+            responsive: true,
+            order: [],
+            language: {
+                search: "<i class='bx bx-search'></i>",
+                searchPlaceholder: "Search tasks..."
+            }
+        });
+
+        $(document).on('click', '.btn-delete', function () {
+            const id   = $(this).data('id');
+            const name = $(this).data('name');
+
+            Swal.fire({
+                title: 'Delete Task?',
+                html: `Are you sure you want to delete <strong>"${name}"</strong>?<br><small class="text-muted">All assignments, points and comments will be removed. This cannot be undone.</small>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#f46a6a',
+                cancelButtonColor: '#74788d',
+                confirmButtonText: '<i class="bx bx-trash me-1"></i> Yes, Delete',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `/Task/Delete/${id}`,
+                        type: 'POST',
+                        headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
+                        success: function (response) {
+                            if (response.success) {
+                                $(`#row-${id}`).fadeOut(400, function () { $(this).remove(); });
+                                toastr.success(response.message, 'Deleted!', { closeButton: true, progressBar: true, timeOut: 4000 });
+                            } else {
+                                toastr.error(response.message, 'Error', { timeOut: 5000 });
+                            }
+                        },
+                        error: function () {
+                            toastr.error('An unexpected error occurred.', 'Error', { timeOut: 5000 });
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+
+    @Html.AntiForgeryToken()
+}
