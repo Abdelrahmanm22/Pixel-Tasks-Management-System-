@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
+using Tasks.Domain.Enums;
 using Tasks.Domain.Models.Identity;
 
 namespace Tasks.Repository.Data
@@ -14,37 +10,57 @@ namespace Tasks.Repository.Data
         {
             if (!userManager.Users.Any())
             {
-                //var user = new AppUser
-                //{
-                //    UserName = "Admin",
-                //    Email = "abdra1396@gmail.com",
-                //    PhoneNumber = "01015496488",
-                //};
-                //await userManager.CreateAsync(user, "Ar115599@");
+                var admin = new AppUser
+                {
+                    UserName       = "admin",
+                    Email          = "admin@pixelsoft.com",
+                    FirstName      = "System",
+                    LastName       = "Admin",
+                    Gender         = Gender.Male,
+                    IsActive       = true,
+                    PhoneNumber    = "01000000001",
+                    EmailConfirmed = true,
+                };
+                await userManager.CreateAsync(admin, "Admin@123456");
 
-                //var user1 = new AppUser
-                //{
-                //    UserName = "abdelrahman",
-                //    Email = "abdelrahmanmohamed2293@gmail.com",
-                //    PhoneNumber = "01015496488",
-                //};
-                //await userManager.CreateAsync(user1, "Ar115599@");
+                var abdelrahman = new AppUser
+                {
+                    UserName       = "abdelrahman",
+                    Email          = "abdelrahmanmohamed2293@gmail.com",
+                    FirstName      = "Abdelrahman",
+                    LastName       = "Mohamed",
+                    Gender         = Gender.Male,
+                    IsActive       = true,
+                    PhoneNumber    = "01015496488",
+                    EmailConfirmed = true,
+                };
+                await userManager.CreateAsync(abdelrahman, "Ar115599@");
 
-                //var user2 = new AppUser
-                //{
-                //    UserName = "Khaled",
-                //    Email = "Khaledmramadan136@gmail.com",
-                //    PhoneNumber = "01015496488",
-                //};
-                //await userManager.CreateAsync(user2, "Ar115599@");
+                var khaled = new AppUser
+                {
+                    UserName       = "khaled",
+                    Email          = "khaledmramadan136@gmail.com",
+                    FirstName      = "Khaled",
+                    LastName       = "Ramadan",
+                    Gender         = Gender.Male,
+                    IsActive       = true,
+                    PhoneNumber    = "01015496488",
+                    EmailConfirmed = true,
+                };
+                await userManager.CreateAsync(khaled, "Ar115599@");
 
-                //var user3 = new AppUser
-                //{
-                //    UserName = "Omar",
-                //    Email = "omar.ramadan2845@gmail.com",
-                //    PhoneNumber = "01015496488"
-                //};
-                //await userManager.CreateAsync(user3, "Ar115599@");
+                var omar = new AppUser
+                {
+                    UserName       = "omar",
+                    Email          = "omar.ramadan2845@gmail.com",
+                    FirstName      = "Omar",
+                    LastName       = "Ramadan",
+                    Gender         = Gender.Male,
+                    IsActive       = true,
+                    PhoneNumber    = "01015496488",
+                    EmailConfirmed = true,
+                };
+                await userManager.CreateAsync(omar, "Ar115599@");
             }
         }
     }

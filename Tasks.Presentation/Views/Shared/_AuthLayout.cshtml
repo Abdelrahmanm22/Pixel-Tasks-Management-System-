@@ -1,15 +1,12 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 
-
-<!-- Mirrored from themesbrand.com/skote-django/layouts/auth-login.html by HTTrack Website Copier/3.x [XR&CO'2014], Tue, 11 May 2021 15:06:43 GMT -->
 <head>
-
     <meta charset="utf-8" />
-    <title>Login | PixelSoft Tasks Dashboard</title>
+    <title>@ViewData["Title"] | PixelSoft Tasks</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta content="Premium Multipurpose Admin & Dashboard Template" name="description" />
-    <meta content="Themesbrand" name="author" />
+    <meta content="Pixel Tasks Management System" name="description" />
+    <meta content="PixelSoft" name="author" />
     <!-- App favicon -->
     <link rel="shortcut icon" href="~/back/assets/images/favicon.ico">
 
@@ -20,11 +17,13 @@
     <!-- App Css-->
     <link href="~/back/assets/css/app.min.css" id="app-style" rel="stylesheet" type="text/css" />
 
+    <!-- Toastr -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
     @RenderBody()
-    <!-- end account-pages -->
+
     <!-- JAVASCRIPT -->
     <script src="~/back/assets/libs/jquery/jquery.min.js"></script>
     <script src="~/back/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -32,9 +31,16 @@
     <script src="~/back/assets/libs/simplebar/simplebar.min.js"></script>
     <script src="~/back/assets/libs/node-waves/waves.min.js"></script>
 
+    <!-- Client-side validation scripts -->
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+
+    <!-- Toastr -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
     <!-- App js -->
     <script src="~/back/assets/js/app.js"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 
-<!-- Mirrored from themesbrand.com/skote-django/layouts/auth-login.html by HTTrack Website Copier/3.x [XR&CO'2014], Tue, 11 May 2021 15:06:43 GMT -->
 </html>

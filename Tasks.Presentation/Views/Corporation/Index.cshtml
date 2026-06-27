@@ -1,112 +1,158 @@
-﻿@model IEnumerable<CorporationViewModel>
+@model IEnumerable<CorporationViewModel>
 
 @{
-	ViewData["Title"] = "Corporation List";
-	Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Corporation List";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!-- Table -->
 <div class="row">
-	<div class="col-12">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
 
-		<div class="card">
-			<div class="card-body">
+                <!-- Action bar -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title mb-0">
+                        <i class="bx bx-buildings me-2 text-primary"></i>Corporations
+                    </h4>
+                    <a asp-action="Create" class="btn btn-primary waves-effect waves-light">
+                        <i class="bx bx-plus me-1"></i> Add Corporation
+                    </a>
+                </div>
 
-				<div class="text-end">
-					<a asp-action="Create"
-					   class="btn btn-primary mb-3">
+                <!-- Responsive DataTable -->
+                <div class="table-responsive">
+                    <table id="corporations-table"
+                           class="table table-hover table-bordered dt-responsive nowrap w-100">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="50">#</th>
+                                <th width="120">Code</th>
+                                <th>Name</th>
+                                <th width="150">Name (Arabic)</th>
+                                <th width="160" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var row = 1;
+                            }
+                            @foreach (var corp in Model)
+                            {
+                                <tr id="row-@corp.Id">
+                                    <td class="fw-medium text-muted">@(row++)</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(corp.Code))
+                                        {
+                                            <span class="badge bg-soft-primary text-primary font-size-12 fw-medium">
+                                                @corp.Code
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="fw-semibold">@corp.Name</td>
+                                    <td>@(corp.NameAr ?? "—")</td>
+                                    <td class="text-center">
+                                        <!-- Details -->
+                                        <!-- Details -->
+                                        <a asp-action="Details"
+                                           asp-route-id="@corp.Id"
+                                           class="btn btn-sm btn-info"
+                                           title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <!-- Edit -->
+                                        <a asp-action="Edit"
+                                           asp-route-id="@corp.Id"
+                                           class="btn btn-sm btn-success"
+                                           title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <!-- Delete -->
+                                        <button type="button"
+                                                class="btn btn-sm btn-danger btn-delete"
+                                                data-id="@corp.Id"
+                                                data-name="@corp.Name"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
 
-						<i class="fas fa-plus me-1"></i>
-						Add Corporation
-
-					</a>
-				</div>
-				<table id="datatable"
-					   class="table table-bordered dt-responsive nowrap w-100">
-
-					<thead>
-						<tr>
-
-							<th>#</th>
-							<th>Code</th>
-							<th>Name</th>
-							<th>Name Arabic</th>
-							<th>Notes</th>
-							<th>Actions</th>
-
-						</tr>
-					</thead>
-
-
-					<tbody>
-						@{
-							var itr = 1;
-						}
-						@foreach (var corporation in Model)
-						{
-							<tr>
-								<td>
-									@(itr++)
-								</td>
-								<td>
-									@corporation.Code
-								</td>
-								<td>
-									@corporation.Name
-								</td>
-								<td>
-									@corporation.NameAr
-								</td>
-								<td>
-									@corporation.Notes
-								</td>
-								<td>
-									<!-- Details -->
-									<a asp-action="Details"
-									   asp-route-id="@corporation.Id"
-									   class="btn btn-sm btn-info"
-									   title="View">
-										<i class="fas fa-eye"></i>
-									</a>
-									<!-- Edit -->
-									<a asp-action="Edit"
-									   asp-route-id="@corporation.Id"
-									   class="btn btn-sm btn-success"
-									   title="Edit">
-										<i class="fas fa-edit"></i>
-									</a>
-									<!-- Delete -->
-									<form asp-action="Delete"
-										  asp-route-id="@corporation.Id"
-										  method="post"
-										  style="display:inline;">
-										<button type="submit"
-												class="btn btn-sm btn-danger"
-												onclick="return confirm('Are you sure?')"
-												title="Delete">
-
-											<i class="fas fa-trash"></i>
-										</button>
-									</form>
-								</td>
-							</tr>
-						}
-
-					</tbody>
-				</table>
-			</div>
-		</div>
-	</div>
+            </div>
+        </div>
+    </div>
 </div>
 
-
-
-
 @section Scripts {
-	<!-- DataTables -->
-	<script src="~/back/assets/libs/datatables.net/js/jquery.dataTables.min.js"></script>
-	<script src="~/back/assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
-	<script src="~/back/assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js"></script>
-	<script src="~/back/assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js"></script>
-	<script src="~/back/assets/js/pages/datatables.init.js"></script>
+    <!-- DataTables -->
+    <script src="~/back/assets/libs/datatables.net/js/jquery.dataTables.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js"></script>
+
+    <script>
+        // Initialize DataTable
+        $('#corporations-table').DataTable({
+            responsive: true,
+            language: {
+                search: "<i class='bx bx-search'></i>",
+                searchPlaceholder: "Search corporations..."
+            }
+        });
+
+        // SweetAlert2 Delete
+        $(document).on('click', '.btn-delete', function () {
+            const id   = $(this).data('id');
+            const name = $(this).data('name');
+
+            Swal.fire({
+                title: 'Delete Corporation?',
+                html: `Are you sure you want to delete <strong>"${name}"</strong>?<br><small class="text-muted">This action cannot be undone.</small>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#f46a6a',
+                cancelButtonColor: '#74788d',
+                confirmButtonText: '<i class="bx bx-trash me-1"></i> Yes, Delete',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `/Corporation/Delete/${id}`,
+                        type: 'POST',
+                        headers: {
+                            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                // Remove the row from the table
+                                $(`#row-${id}`).fadeOut(400, function () { $(this).remove(); });
+                                toastr.success(response.message, 'Deleted!', {
+                                    closeButton: true,
+                                    progressBar: true,
+                                    timeOut: 4000
+                                });
+                            } else {
+                                toastr.error(response.message, 'Error', { timeOut: 5000 });
+                            }
+                        },
+                        error: function () {
+                            toastr.error('An unexpected error occurred.', 'Error', { timeOut: 5000 });
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+
+    @* Hidden CSRF token for AJAX delete *@
+    @Html.AntiForgeryToken()
 }

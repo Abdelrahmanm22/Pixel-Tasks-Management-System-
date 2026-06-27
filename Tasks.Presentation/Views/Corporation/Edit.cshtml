@@ -1,0 +1,116 @@
+@model Tasks.Presentation.ViewModels.CorporationViewModel
+
+@{
+    ViewData["Title"] = "Edit Corporation";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-10">
+
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0 fw-semibold">
+                        <i class="bx bx-edit me-2 text-success"></i>Edit Corporation
+                    </h5>
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary waves-effect">
+                        <i class="bx bx-arrow-back me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body p-4">
+
+                <div asp-validation-summary="None" class="text-danger"></div>
+
+                <form asp-action="Edit"
+                      asp-controller="Corporation"
+                      asp-route-id="@Model.Id"
+                      method="post"
+                      id="edit-form"
+                      novalidate>
+
+                    @Html.AntiForgeryToken()
+                    <input asp-for="Id" type="hidden" />
+
+                    <div class="row g-3">
+
+                        <!-- Code (read-only) -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Code</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bx bx-barcode"></i></span>
+                                <input asp-for="Code" class="form-control bg-light" readonly />
+                            </div>
+                            <small class="text-muted">Auto-generated — cannot be changed.</small>
+                        </div>
+
+                        <!-- Name -->
+                        <div class="col-md-8">
+                            <label asp-for="Name" class="form-label fw-medium">
+                                Corporation Name (EN) <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="Name"
+                                   class="form-control"
+                                   placeholder="e.g. Pixel Software" />
+                            <span asp-validation-for="Name" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Name Arabic -->
+                        <div class="col-md-6">
+                            <label asp-for="NameAr" class="form-label fw-medium">
+                                Corporation Name (AR)
+                            </label>
+                            <input asp-for="NameAr"
+                                   class="form-control"
+                                   dir="rtl"
+                                   placeholder="مثال: بيكسل سوفت" />
+                            <span asp-validation-for="NameAr" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-12">
+                            <label asp-for="Notes" class="form-label fw-medium">Notes</label>
+                            <textarea asp-for="Notes"
+                                      class="form-control"
+                                      rows="3"
+                                      placeholder="Optional notes..."></textarea>
+                            <span asp-validation-for="Notes" class="text-danger small mt-1 d-block"></span>
+                        </div>
+
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a asp-action="Details" asp-route-id="@Model.Id"
+                           class="btn btn-outline-info waves-effect me-auto">
+                            <i class="bx bx-show me-1"></i> View Details
+                        </a>
+                        <a asp-action="Index" class="btn btn-outline-secondary waves-effect">
+                            <i class="bx bx-x me-1"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success waves-effect waves-light" id="update-btn">
+                            <i class="bx bx-check me-1"></i> Update Corporation
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Only disable button when form is actually valid (prevents getting stuck on validation errors)
+        document.getElementById('edit-form').addEventListener('submit', function () {
+            if ($(this).valid()) {
+                const btn = document.getElementById('update-btn');
+                btn.disabled  = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Updating...';
+            }
+        });
+    </script>
+}
