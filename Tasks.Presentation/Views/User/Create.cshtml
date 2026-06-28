@@ -26,7 +26,7 @@
                     <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
                 }
 
-                <form asp-action="Create" asp-controller="User" method="post" id="create-form" novalidate>
+                <form asp-action="Create" asp-controller="User" method="post" enctype="multipart/form-data" id="create-form" novalidate>
                     @Html.AntiForgeryToken()
 
                     <div class="row g-3">
@@ -132,6 +132,27 @@
                             </div>
                         </div>
 
+                        <!-- Profile Image -->
+                        <div class="col-12"><hr class="my-1"></div>
+
+                        <div class="col-12">
+                            <p class="text-muted small mb-2"><i class="bx bx-image me-1"></i>Profile Picture (optional)</p>
+                            <div class="d-flex align-items-center gap-3">
+                                <img id="avatar-preview"
+                                     src="/back/assets/images/users/user.png"
+                                     class="rounded-circle"
+                                     style="width:80px;height:80px;object-fit:cover;border:2px solid #dee2e6;"
+                                     alt="Preview" />
+                                <div>
+                                    <input asp-for="ProfileImage" type="file" accept="image/*"
+                                           class="form-control" id="profile-image-input"
+                                           style="max-width:320px;" />
+                                    <span asp-validation-for="ProfileImage" class="text-danger small mt-1 d-block"></span>
+                                    <small class="text-muted">JPG, PNG, GIF or WebP</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Password -->
                         <div class="col-12"><hr class="my-1"></div>
 
@@ -223,6 +244,16 @@
             } else {
                 input.type = 'password';
                 icon.classList.replace('mdi-eye-off-outline', 'mdi-eye-outline');
+            }
+        });
+
+        // Avatar live preview
+        document.getElementById('profile-image-input').addEventListener('change', function () {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => document.getElementById('avatar-preview').src = e.target.result;
+                reader.readAsDataURL(file);
             }
         });
 

@@ -5,10 +5,7 @@
 @{
     var currentUser = await UserManager.GetUserAsync(User);
     var displayName = currentUser?.FullName ?? User.Identity?.Name ?? "User";
-    // Url.Content() is required to resolve the ~ virtual path — plain C# strings don't expand it
-    var avatarSrc   = string.IsNullOrEmpty(currentUser?.ImageUrl)
-                        ? Url.Content("~/back/assets/images/users/user.png")
-                        : currentUser.ImageUrl;
+    var avatarSrc   = AvatarHelper.Resolve(currentUser?.ImageUrl, currentUser?.Gender ?? Tasks.Domain.Enums.Gender.Male);
 }
 
 <header id="page-topbar">
@@ -81,7 +78,7 @@
 				</button>
 				<div class="dropdown-menu dropdown-menu-end">
 					<!-- Profile -->
-					<a class="dropdown-item" href="#">
+					<a class="dropdown-item" asp-controller="Account" asp-action="Profile">
 						<i class="bx bx-user font-size-16 align-middle me-1"></i>
 						<span>Profile</span>
 					</a>

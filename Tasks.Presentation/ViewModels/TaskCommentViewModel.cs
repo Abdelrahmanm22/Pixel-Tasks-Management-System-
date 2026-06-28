@@ -13,6 +13,7 @@ namespace Tasks.Presentation.ViewModels
         public string UserId { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
         public string? UserImageUrl { get; set; }
+        public Gender UserGender { get; set; }
 
         // True when the current viewer authored this comment (right-aligned chat bubble).
         public bool IsMine { get; set; }

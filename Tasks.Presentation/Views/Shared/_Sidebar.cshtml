@@ -24,6 +24,12 @@
                             <span>All Tasks</span>
                         </a>
                     </li>
+                    <li>
+                        <a asp-controller="Task" asp-action="MyCreatedTasks" class="waves-effect">
+                            <i class="bx bx-grid-alt"></i>
+                            <span>My Created Tasks</span>
+                        </a>
+                    </li>
                     <permission required="@Permissions.Tasks.Create">
                         <li>
                             <a asp-controller="Task" asp-action="Create" class="waves-effect">
@@ -38,8 +44,14 @@
                     <li class="menu-title">My Tasks</li>
                     <li>
                         <a asp-controller="Task" asp-action="MyTasks" class="waves-effect">
-                            <i class="bx bx-task"></i>
-                            <span>Assigned Tasks</span>
+                            <i class="bx bx-grid-alt"></i>
+                            <span>Active Tasks</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a asp-controller="Task" asp-action="AllMyTasks" class="waves-effect">
+                            <i class="bx bx-list-ul"></i>
+                            <span>All My Tasks</span>
                         </a>
                     </li>
                 </permission>

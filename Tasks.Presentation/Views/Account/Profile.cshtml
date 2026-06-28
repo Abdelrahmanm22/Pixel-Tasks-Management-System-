@@ -1,0 +1,124 @@
+@model ProfileViewModel
+
+@{
+    ViewData["Title"] = "My Profile";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var avatarSrc = AvatarHelper.Resolve(Model.ImageUrl, Model.Gender);
+}
+
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-10">
+
+        <!-- Profile card -->
+        <div class="card overflow-hidden mb-4">
+            <div class="bg-soft-primary" style="height:140px;background:linear-gradient(135deg,#556ee6 0%,#6f42c1 100%);"></div>
+            <div class="card-body pt-0">
+                <div class="d-flex align-items-end gap-4 mt-n5 mb-3">
+                    <img id="avatar-display"
+                         src="@avatarSrc"
+                         class="rounded-circle border border-3 border-white shadow-sm"
+                         style="width:100px;height:100px;object-fit:cover;"
+                         alt="@Model.FullName" />
+                    <div class="pb-1">
+                        <h5 class="mb-0 fw-semibold">@Model.FullName</h5>
+                        <p class="text-muted mb-0">
+                            <i class="bx bx-at me-1"></i>@Model.UserName
+                            <span class="badge bg-primary ms-2">@Model.Role</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-sm-6 col-md-4">
+                        <p class="text-muted small mb-1"><i class="bx bx-envelope me-1"></i>Email</p>
+                        <p class="fw-medium mb-0">@Model.Email</p>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.PhoneNumber))
+                    {
+                        <div class="col-sm-6 col-md-4">
+                            <p class="text-muted small mb-1"><i class="bx bx-phone me-1"></i>Phone</p>
+                            <p class="fw-medium mb-0">@Model.PhoneNumber</p>
+                        </div>
+                    }
+                    <div class="col-sm-6 col-md-4">
+                        <p class="text-muted small mb-1"><i class="bx bx-user me-1"></i>Gender</p>
+                        <p class="fw-medium mb-0">@Model.Gender</p>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.CorporationName))
+                    {
+                        <div class="col-sm-6 col-md-4">
+                            <p class="text-muted small mb-1"><i class="bx bx-buildings me-1"></i>Corporation</p>
+                            <p class="fw-medium mb-0">@Model.CorporationName</p>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.SectionName))
+                    {
+                        <div class="col-sm-6 col-md-4">
+                            <p class="text-muted small mb-1"><i class="bx bx-layer me-1"></i>Section</p>
+                            <p class="fw-medium mb-0">@Model.SectionName</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Change picture card -->
+        <div class="card">
+            <div class="card-header bg-transparent border-bottom py-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    <i class="bx bx-camera me-2 text-primary"></i>Change Profile Picture
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="UpdateImage" asp-controller="Account"
+                      method="post" enctype="multipart/form-data" id="image-form">
+                    @Html.AntiForgeryToken()
+
+                    <div class="d-flex align-items-center gap-4 flex-wrap">
+                        <img id="avatar-preview"
+                             src="@avatarSrc"
+                             class="rounded-circle"
+                             style="width:80px;height:80px;object-fit:cover;border:2px solid #dee2e6;"
+                             alt="Preview" />
+
+                        <div class="flex-grow-1">
+                            <label asp-for="ProfileImage" class="form-label fw-medium">Select new image</label>
+                            <input asp-for="ProfileImage" type="file" accept="image/*"
+                                   class="form-control mb-1" id="profile-image-input"
+                                   style="max-width:380px;" />
+                            <small class="text-muted">JPG, PNG, GIF or WebP. Replaces the current picture.</small>
+                        </div>
+
+                        <div class="align-self-end">
+                            <button type="submit" class="btn btn-primary waves-effect waves-light" id="upload-btn">
+                                <i class="bx bx-upload me-1"></i> Upload
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('profile-image-input').addEventListener('change', function () {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    document.getElementById('avatar-preview').src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('image-form').addEventListener('submit', function () {
+            const btn = document.getElementById('upload-btn');
+            btn.disabled  = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Uploading...';
+        });
+    </script>
+}

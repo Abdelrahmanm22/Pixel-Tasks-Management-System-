@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
@@ -62,6 +63,11 @@ namespace Tasks.Presentation.ViewModels
         [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
         [Display(Name = "Confirm Password")]
         public string? ConfirmPassword { get; set; }
+
+        [Display(Name = "Profile Image")]
+        public IFormFile? ProfileImage { get; set; }
+
+        public string? ExistingImageUrl { get; set; }
 
         // Display helpers (not mapped from form)
         public string? FullName => $"{FirstName} {LastName}".Trim();

@@ -1,0 +1,125 @@
+/* Task card grid — modern hover + scroll controls (shared by employee & admin card pages) */
+
+.task-card {
+    border: 1px solid transparent;
+    transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease;
+    will-change: transform;
+}
+
+.task-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 .75rem 1.75rem rgba(18, 38, 63, .18);
+    border-color: rgba(85, 110, 230, .35);
+}
+
+/* Subtle accent that grows in on hover */
+.task-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: .25rem 0 0 .25rem;
+    background: linear-gradient(180deg, #556ee6, #6f86ff);
+    opacity: 0;
+    transform: scaleY(.4);
+    transform-origin: center;
+    transition: opacity .35s ease, transform .35s ease;
+}
+
+.task-card:hover::before {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+/* Overlapping assignee avatars */
+.assignee-avatars {
+    display: flex;
+    align-items: center;
+}
+
+.assignee-avatars .avatar-item {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+    margin-left: -8px;
+    background: #f1f1f1;
+}
+
+.assignee-avatars .avatar-item:first-child {
+    margin-left: 0;
+}
+
+.assignee-avatars .avatar-more {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    margin-left: -8px;
+    border: 2px solid #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    background: #eff2f7;
+    color: #556ee6;
+}
+
+/* Per-assignee progress list (admin created-tasks cards) */
+.assignee-progress-list {
+    max-height: 188px;
+    overflow-y: auto;
+}
+
+.assignee-progress-list .assignee-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .4rem 0;
+}
+
+.assignee-progress-list .assignee-row + .assignee-row {
+    border-top: 1px solid #eff2f7;
+}
+
+.assignee-progress-list .assignee-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #f1f1f1;
+}
+
+.assignee-progress-list .assignee-name {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Card pager */
+.task-card-pager {
+    display: flex;
+    justify-content: center;
+    margin-top: .5rem;
+}
+
+.task-card-empty {
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .task-card,
+    .task-card::before {
+        transition: none;
+    }
+
+    .task-card:hover {
+        transform: none;
+    }
+}

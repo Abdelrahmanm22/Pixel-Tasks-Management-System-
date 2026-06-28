@@ -341,7 +341,67 @@ namespace Tasks.Presentation.Controllers
             var userId = _userManager.GetUserId(User)!;
             var tasks = await _unitOfWork.Repository<WorkTask>().GetAllAsync(new WorkTaskByUserSpec(userId));
 
-            var list = tasks.Select(t =>
+            var list = BuildMyTasks(tasks, userId)
+                .Where(t => t.MyStatus is WorkTaskStatus.Pending or WorkTaskStatus.InProgress)
+                .ToList();
+
+            return View(list);
+        }
+
+        [Authorize(Policy = Permissions.Tasks.ViewAssigned)]
+        public async Task<IActionResult> AllMyTasks()
+        {
+            var userId = _userManager.GetUserId(User)!;
+            var tasks = await _unitOfWork.Repository<WorkTask>().GetAllAsync(new WorkTaskByUserSpec(userId));
+
+            var list = BuildMyTasks(tasks, userId).ToList();
+            return View(list);
+        }
+
+        [Authorize(Policy = Permissions.Tasks.ViewAll)]
+        public async Task<IActionResult> MyCreatedTasks()
+        {
+            var userId = _userManager.GetUserId(User)!;
+            var tasks = await _unitOfWork.Repository<WorkTask>().GetAllAsync(new WorkTaskByCreatorSpec(userId));
+
+            var list = tasks
+                .Where(t => t.Status is WorkTaskStatus.Pending or WorkTaskStatus.InProgress)
+                .Select(t =>
+                {
+                    var category = t.TaskType.Category;
+                    var assignees = t.Assignments.Select(a => new AssigneeAvatarViewModel
+                    {
+                        FullName = a.User?.FullName,
+                        ImageUrl = a.User?.ImageUrl,
+                        Gender = a.User?.Gender ?? Gender.Male,
+                        ProgressPercent = ProgressPercent(category, a, t),
+                        Status = a.Status
+                    }).ToList();
+
+                    return new CreatedTaskCardViewModel
+                    {
+                        Id = t.Id,
+                        Code = t.Code,
+                        Title = t.Title,
+                        Category = category,
+                        Priority = t.Priority,
+                        DueDate = t.DueDate,
+                        Status = t.Status,
+                        CorporationName = t.Corporation?.Name,
+                        AssigneeCount = assignees.Count,
+                        CompletedAssigneeCount = assignees.Count(a => a.Status == WorkTaskStatus.Completed),
+                        OverallProgressPercent = assignees.Count > 0
+                            ? (int)Math.Round(assignees.Average(a => a.ProgressPercent))
+                            : 0,
+                        Assignees = assignees
+                    };
+                }).ToList();
+
+            return View(list);
+        }
+
+        private IEnumerable<MyTaskViewModel> BuildMyTasks(IEnumerable<WorkTask> tasks, string userId) =>
+            tasks.Select(t =>
             {
                 var assignment = t.Assignments.First(a => a.UserId == userId);
                 return new MyTaskViewModel
@@ -356,10 +416,7 @@ namespace Tasks.Presentation.Controllers
                     CorporationName = t.Corporation?.Name,
                     ProgressPercent = ProgressPercent(t.TaskType.Category, assignment, t)
                 };
-            }).ToList();
-
-            return View(list);
-        }
+            });
 
         [Authorize(Policy = Permissions.Tasks.ViewAssigned)]
         public async Task<IActionResult> Work(int id)

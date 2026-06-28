@@ -1,0 +1,135 @@
+@model IEnumerable<CreatedTaskCardViewModel>
+@using Tasks.Domain.Enums
+@{
+    ViewData["Title"] = "My Created Tasks";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    (string cls, string text) PriorityBadge(PriorityLevel p) => p switch
+    {
+        PriorityLevel.Low      => ("bg-soft-success text-success", "Low"),
+        PriorityLevel.Medium   => ("bg-soft-warning text-warning", "Medium"),
+        PriorityLevel.High     => ("bg-soft-danger text-danger", "High"),
+        PriorityLevel.Critical => ("bg-danger text-white", "Critical"),
+        _ => ("bg-soft-secondary text-secondary", p.ToString())
+    };
+    (string cls, string text) StatusBadge(WorkTaskStatus s) => s switch
+    {
+        WorkTaskStatus.Pending    => ("bg-soft-secondary text-secondary", "Pending"),
+        WorkTaskStatus.InProgress => ("bg-soft-info text-info", "In Progress"),
+        WorkTaskStatus.Completed  => ("bg-soft-success text-success", "Completed"),
+        _ => ("bg-soft-secondary text-secondary", s.ToString())
+    };
+}
+
+<link href="~/css/task-cards.css" rel="stylesheet" />
+
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h4 class="card-title mb-0">
+                <i class="bx bx-task me-2 text-primary"></i>My Created Tasks
+            </h4>
+            <div class="d-flex align-items-center gap-2">
+                <div class="app-search d-none d-lg-block p-0">
+                    <div class="position-relative">
+                        <input type="text" class="form-control" placeholder="Search tasks..."
+                               data-card-search="created-tasks-grid" />
+                        <span class="bx bx-search-alt"></span>
+                    </div>
+                </div>
+                <a asp-action="Index" class="btn btn-outline-primary">
+                    <i class="bx bx-list-ul me-1"></i> All tasks
+                </a>
+            </div>
+        </div>
+        <input type="text" class="form-control d-lg-none mb-3" placeholder="Search tasks..."
+               data-card-search="created-tasks-grid" />
+
+        <div class="text-center text-muted py-5 task-card-empty" data-card-empty="created-tasks-grid">
+            <i class="bx bx-task fs-1 d-block mb-2"></i>No matching tasks.
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="text-center text-muted py-5">
+                <i class="bx bx-task fs-1 d-block mb-2"></i>You have no active tasks you created.
+                <a asp-action="Index">View all tasks</a>.
+            </div>
+        }
+
+        <div class="row task-card-grid" id="created-tasks-grid">
+            @foreach (var t in Model)
+            {
+                var pr = PriorityBadge(t.Priority);
+                var st = StatusBadge(t.Status);
+                <div class="col-xl-4 col-md-6 task-card-col" data-search="@t.Title @t.Code">
+                    <div class="card h-100 task-card position-relative">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge bg-soft-primary text-primary">@t.Code</span>
+                                <div>
+                                    <span class="badge @pr.cls">@pr.text</span>
+                                    <span class="badge @st.cls">@st.text</span>
+                                </div>
+                            </div>
+                            <h5 class="font-size-15 mb-1">@t.Title</h5>
+                            <p class="text-muted small mb-3">
+                                <i class="bx bx-buildings me-1"></i>@t.CorporationName
+                                <span class="ms-2"><i class="bx bx-purchase-tag-alt me-1"></i>@t.Category</span>
+                            </p>
+
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted small">Assignees (@t.AssigneeCount)</span>
+                                <span class="badge bg-soft-success text-success">
+                                    @t.CompletedAssigneeCount / @t.AssigneeCount completed
+                                </span>
+                            </div>
+
+                            <div class="assignee-progress-list mb-3">
+                                @if (t.AssigneeCount == 0)
+                                {
+                                    <span class="text-muted small">No assignees yet.</span>
+                                }
+                                @foreach (var a in t.Assignees)
+                                {
+                                    var barCls = a.Status switch
+                                    {
+                                        WorkTaskStatus.Completed  => "bg-success",
+                                        WorkTaskStatus.InProgress => "bg-primary",
+                                        _ => "bg-secondary"
+                                    };
+                                    <div class="assignee-row">
+                                        <img src="@AvatarHelper.Resolve(a.ImageUrl, a.Gender)" class="assignee-avatar"
+                                             alt="@a.FullName" title="@a.FullName" />
+                                        <div class="flex-grow-1" style="min-width:0;">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="assignee-name">@a.FullName</span>
+                                                <span class="small fw-medium ms-2">@a.ProgressPercent%</span>
+                                            </div>
+                                            <div class="progress" style="height:5px;">
+                                                <div class="progress-bar @barCls" style="width:@(a.ProgressPercent)%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+                                <small class="text-muted"><i class="bx bx-calendar me-1"></i>@t.DueDate.ToString("dd MMM yyyy")</small>
+                                <a asp-action="Details" asp-route-id="@t.Id" class="btn btn-sm btn-primary">
+                                    <i class="bx bx-right-arrow-alt me-1"></i> View
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="task-card-pager" data-card-pager="created-tasks-grid"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/task-cards.js"></script>
+}

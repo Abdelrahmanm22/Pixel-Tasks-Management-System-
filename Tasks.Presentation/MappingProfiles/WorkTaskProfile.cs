@@ -38,6 +38,7 @@ namespace Tasks.Presentation.MappingProfiles
             CreateMap<TaskComment, TaskCommentViewModel>()
                 .ForMember(d => d.UserName,     opt => opt.MapFrom(s => s.User != null ? s.User.FullName : null))
                 .ForMember(d => d.UserImageUrl, opt => opt.MapFrom(s => s.User != null ? s.User.ImageUrl : null))
+                .ForMember(d => d.UserGender,   opt => opt.MapFrom(s => s.User != null ? s.User.Gender : default))
                 .ForMember(d => d.IsMine,       opt => opt.Ignore());
         }
     }

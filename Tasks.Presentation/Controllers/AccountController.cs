@@ -1,13 +1,17 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Tasks.Domain.Models.Identity;
+using Tasks.Presentation.Helpers;
 using Tasks.Presentation.ViewModels;
 
 namespace Tasks.Presentation.Controllers
 {
     public class AccountController : Controller
     {
+        private const string UsersFolder = "Users";
+
         private readonly UserManager<AppUser>   _userManager;
         private readonly SignInManager<AppUser> _signInManager;
 
@@ -75,6 +79,70 @@ namespace Tasks.Presentation.Controllers
         public IActionResult AccessDenied()
         {
             return View();
+        }
+
+        // ─── PROFILE ─────────────────────────────────────────────────────────
+
+        [Authorize]
+        public async Task<IActionResult> Profile()
+        {
+            var user = await _userManager.Users
+                .Include(u => u.Corporation)
+                .Include(u => u.Section)
+                .FirstOrDefaultAsync(u => u.Id == _userManager.GetUserId(User));
+
+            if (user is null)
+                return NotFound();
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var vm = new ProfileViewModel
+            {
+                FullName        = user.FullName,
+                UserName        = user.UserName ?? string.Empty,
+                Email           = user.Email ?? string.Empty,
+                PhoneNumber     = user.PhoneNumber,
+                Gender          = user.Gender,
+                ImageUrl        = user.ImageUrl,
+                Role            = roles.FirstOrDefault() ?? string.Empty,
+                CorporationName = user.Corporation?.Name,
+                SectionName     = user.Section?.Name,
+            };
+
+            return View(vm);
+        }
+
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateImage(ProfileViewModel model)
+        {
+            var user = await _userManager.FindByIdAsync(_userManager.GetUserId(User)!);
+            if (user is null)
+                return NotFound();
+
+            if (model.ProfileImage is null || model.ProfileImage.Length == 0)
+            {
+                TempData["Error"] = "Please select an image file.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            var contentType = model.ProfileImage.ContentType;
+            if (contentType is not ("image/jpeg" or "image/png" or "image/gif" or "image/webp"))
+            {
+                TempData["Error"] = "Only image files (jpg, png, gif, webp) are allowed.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            if (!string.IsNullOrEmpty(user.ImageUrl))
+                DocumentSettings.DeleteFile(Path.GetFileName(user.ImageUrl), UsersFolder);
+
+            var fileName = DocumentSettings.UplaodFile(model.ProfileImage, UsersFolder);
+            user.ImageUrl = $"/Files/{UsersFolder}/{fileName}";
+            await _userManager.UpdateAsync(user);
+
+            TempData["Success"] = "Profile picture updated successfully.";
+            return RedirectToAction(nameof(Profile));
         }
     }
 }

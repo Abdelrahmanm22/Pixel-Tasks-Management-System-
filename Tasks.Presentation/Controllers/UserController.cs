@@ -9,6 +9,7 @@ using Tasks.Domain.Models;
 using Tasks.Domain.Models.Identity;
 using Tasks.Domain.Specifications.CorporationSpec;
 using Tasks.Domain.Specifications.SectionSpec;
+using Tasks.Presentation.Helpers;
 using Tasks.Presentation.ViewModels;
 
 namespace Tasks.Presentation.Controllers
@@ -16,6 +17,8 @@ namespace Tasks.Presentation.Controllers
     [Authorize(Policy = Permissions.Users.Manage)]
     public class UserController : Controller
     {
+        private const string UsersFolder = "Users";
+
         private readonly UserManager<AppUser>   _userManager;
         private readonly IUnitOfWork            _unitOfWork;
 
@@ -106,6 +109,20 @@ namespace Tasks.Presentation.Controllers
                 return View(model);
             }
 
+            if (model.ProfileImage is not null && model.ProfileImage.Length > 0)
+            {
+                if (!IsImage(model.ProfileImage.ContentType))
+                {
+                    ModelState.AddModelError(nameof(model.ProfileImage), "Only image files (jpg, png, gif, webp) are allowed.");
+                    await _userManager.DeleteAsync(user);
+                    await PopulateSelectListsAsync(model);
+                    return View(model);
+                }
+                var fileName = DocumentSettings.UplaodFile(model.ProfileImage, UsersFolder);
+                user.ImageUrl = $"/Files/{UsersFolder}/{fileName}";
+                await _userManager.UpdateAsync(user);
+            }
+
             await _userManager.AddToRoleAsync(user, model.Role);
 
             TempData["Success"] = $"User \"{user.FullName}\" created successfully.";
@@ -124,17 +141,18 @@ namespace Tasks.Presentation.Controllers
 
             var model = new UserViewModel
             {
-                Id            = user.Id,
-                FirstName     = user.FirstName,
-                LastName      = user.LastName,
-                UserName      = user.UserName ?? string.Empty,
-                Email         = user.Email ?? string.Empty,
-                PhoneNumber   = user.PhoneNumber,
-                Gender        = user.Gender,
-                IsActive      = user.IsActive,
-                Role          = roles.FirstOrDefault() ?? string.Empty,
-                CorporationId = user.CorporationId,
-                SectionId     = user.SectionId,
+                Id               = user.Id,
+                FirstName        = user.FirstName,
+                LastName         = user.LastName,
+                UserName         = user.UserName ?? string.Empty,
+                Email            = user.Email ?? string.Empty,
+                PhoneNumber      = user.PhoneNumber,
+                Gender           = user.Gender,
+                IsActive         = user.IsActive,
+                Role             = roles.FirstOrDefault() ?? string.Empty,
+                CorporationId    = user.CorporationId,
+                SectionId        = user.SectionId,
+                ExistingImageUrl = user.ImageUrl,
             };
 
             await PopulateSelectListsAsync(model);
@@ -171,6 +189,23 @@ namespace Tasks.Presentation.Controllers
             user.IsActive      = model.IsActive;
             user.CorporationId = model.CorporationId;
             user.SectionId     = model.SectionId;
+
+            if (model.ProfileImage is not null && model.ProfileImage.Length > 0)
+            {
+                if (!IsImage(model.ProfileImage.ContentType))
+                {
+                    ModelState.AddModelError(nameof(model.ProfileImage), "Only image files (jpg, png, gif, webp) are allowed.");
+                    model.ExistingImageUrl = user.ImageUrl;
+                    await PopulateSelectListsAsync(model);
+                    return View(model);
+                }
+
+                if (!string.IsNullOrEmpty(user.ImageUrl))
+                    DocumentSettings.DeleteFile(Path.GetFileName(user.ImageUrl), UsersFolder);
+
+                var fileName = DocumentSettings.UplaodFile(model.ProfileImage, UsersFolder);
+                user.ImageUrl = $"/Files/{UsersFolder}/{fileName}";
+            }
 
             var updateResult = await _userManager.UpdateAsync(user);
             if (!updateResult.Succeeded)
@@ -257,6 +292,9 @@ namespace Tasks.Presentation.Controllers
         }
 
         // ─── Private Helpers ─────────────────────────────────────────────────
+
+        private static bool IsImage(string contentType) =>
+            contentType is "image/jpeg" or "image/png" or "image/gif" or "image/webp";
 
         private async Task PopulateSelectListsAsync(UserViewModel model)
         {

@@ -1,0 +1,108 @@
+@model IEnumerable<MyTaskViewModel>
+@using Tasks.Domain.Enums
+
+@{
+    ViewData["Title"] = "All My Tasks";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@functions {
+    static (string cls, string text) PriorityBadge(PriorityLevel p) => p switch
+    {
+        PriorityLevel.Low      => ("bg-soft-success text-success", "Low"),
+        PriorityLevel.Medium   => ("bg-soft-warning text-warning", "Medium"),
+        PriorityLevel.High     => ("bg-soft-danger text-danger", "High"),
+        PriorityLevel.Critical => ("bg-danger text-white", "Critical"),
+        _ => ("bg-soft-secondary text-secondary", p.ToString())
+    };
+
+    static (string cls, string text) StatusBadge(WorkTaskStatus s) => s switch
+    {
+        WorkTaskStatus.Pending    => ("bg-soft-secondary text-secondary", "Pending"),
+        WorkTaskStatus.InProgress => ("bg-soft-info text-info", "In Progress"),
+        WorkTaskStatus.Completed  => ("bg-soft-success text-success", "Completed"),
+        _ => ("bg-soft-secondary text-secondary", s.ToString())
+    };
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title mb-0">
+                        <i class="bx bx-list-ul me-2 text-primary"></i>All My Tasks
+                    </h4>
+                    <a asp-action="MyTasks" class="btn btn-outline-primary">
+                        <i class="bx bx-grid-alt me-1"></i> Card view
+                    </a>
+                </div>
+
+                <table id="mytasks-table" class="table table-hover table-bordered align-middle w-100">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="120">Code</th>
+                            <th>Title</th>
+                            <th width="110">Type</th>
+                            <th width="100">Priority</th>
+                            <th width="160">Corporation</th>
+                            <th width="120">Due Date</th>
+                            <th width="150">Progress</th>
+                            <th width="120">Status</th>
+                            <th width="90" class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            var pr = PriorityBadge(item.Priority);
+                            var st = StatusBadge(item.MyStatus);
+                            <tr>
+                                <td><span class="badge bg-soft-primary text-primary font-size-12 fw-medium">@item.Code</span></td>
+                                <td class="fw-semibold">@item.Title</td>
+                                <td><span class="badge bg-soft-dark text-dark">@item.Category</span></td>
+                                <td><span class="badge @pr.cls font-size-12">@pr.text</span></td>
+                                <td>@item.CorporationName</td>
+                                <td>@item.DueDate.ToString("dd MMM yyyy")</td>
+                                <td data-order="@item.ProgressPercent">
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress flex-grow-1 me-2" style="height:6px;">
+                                            <div class="progress-bar bg-primary" style="width:@(item.ProgressPercent)%"></div>
+                                        </div>
+                                        <small class="text-muted">@item.ProgressPercent%</small>
+                                    </div>
+                                </td>
+                                <td><span class="badge @st.cls font-size-12">@st.text</span></td>
+                                <td class="text-center">
+                                    <a asp-action="Work" asp-route-id="@item.Id" class="btn btn-sm btn-primary" title="Open">
+                                        <i class="bx bx-right-arrow-alt"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/back/assets/libs/datatables.net/js/jquery.dataTables.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-bs4/js/dataTables.bootstrap4.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js"></script>
+    <script src="~/back/assets/libs/datatables.net-responsive-bs4/js/responsive.bootstrap4.min.js"></script>
+
+    <script>
+        $('#mytasks-table').DataTable({
+            responsive: true,
+            order: [],
+            language: {
+                search: "<i class='bx bx-search'></i>",
+                searchPlaceholder: "Search tasks..."
+            }
+        });
+    </script>
+}
