@@ -56,7 +56,7 @@ namespace Tasks.Presentation.ViewModels
         public bool IsActive { get; set; } = true;
 
         // Create-only: password fields
-        [MinLength(8, ErrorMessage = "Password must be at least 8 characters.")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters.")]
         [Display(Name = "Password")]
         public string? Password { get; set; }
 
