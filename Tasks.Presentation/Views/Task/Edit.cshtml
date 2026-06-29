@@ -9,6 +9,7 @@
 }
 
 <link href="~/back/assets/libs/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+<link href="~/back/assets/libs/bootstrap-datepicker/css/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
 
 <div class="row justify-content-center">
     <div class="col-xl-9 col-lg-11">
@@ -54,13 +55,13 @@
 
                         <div class="col-md-4">
                             <label asp-for="RequestDate" class="form-label fw-medium">Request Date <span class="text-danger">*</span></label>
-                            <input asp-for="RequestDate" type="date" class="form-control" />
+                            <input asp-for="RequestDate" asp-format="{0:dd/MM/yyyy}" type="text" class="form-control datepicker-input bg-white" placeholder="dd/mm/yyyy" autocomplete="off" readonly style="cursor:pointer;" />
                             <span asp-validation-for="RequestDate" class="text-danger small mt-1 d-block"></span>
                         </div>
 
                         <div class="col-md-4">
                             <label asp-for="DueDate" class="form-label fw-medium">Due Date <span class="text-danger">*</span></label>
-                            <input asp-for="DueDate" type="date" class="form-control" />
+                            <input asp-for="DueDate" asp-format="{0:dd/MM/yyyy}" type="text" class="form-control datepicker-input bg-white" placeholder="dd/mm/yyyy" autocomplete="off" readonly style="cursor:pointer;" />
                             <span asp-validation-for="DueDate" class="text-danger small mt-1 d-block"></span>
                         </div>
 
@@ -155,8 +156,17 @@
 
 @section Scripts {
     <script src="~/back/assets/libs/select2/js/select2.min.js"></script>
+    <script src="~/back/assets/libs/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
     @await Html.PartialAsync("_ValidationScriptsPartial")
     <script>
+        // ── Date pickers (dd/mm/yyyy) ─────────────────────────────────
+        $('.datepicker-input').datepicker({
+            format: 'dd/mm/yyyy',
+            autoclose: true,
+            todayHighlight: true,
+            orientation: 'bottom auto'
+        });
+
         const isPoint = @Json.Serialize(isPoint);
         const initialAssignees = @Html.Raw(Json.Serialize(Model.SelectedUserIds));
         const initialPointIds  = @Html.Raw(Json.Serialize(Model.Points.Where(p => p.Id != 0).Select(p => p.Id)));
@@ -230,6 +240,8 @@
                 toastr.warning('Assign the task to at least one employee.', 'Assignees');
                 return;
             }
+
+            if (!confirmed && !$(this).valid()) { e.preventDefault(); return; }
 
             const removedAssignees = initialAssignees.filter(id => !currentAssignees.includes(id));
             const currentPointIds  = Array.from(document.querySelectorAll('#points-list .point-id'))

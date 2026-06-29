@@ -7,6 +7,7 @@
 }
 
 <link href="~/back/assets/libs/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+<link href="~/back/assets/libs/bootstrap-datepicker/css/bootstrap-datepicker.min.css" rel="stylesheet" type="text/css" />
 
 <div class="row justify-content-center">
     <div class="col-xl-9 col-lg-11">
@@ -55,14 +56,14 @@
                         <!-- Request Date -->
                         <div class="col-md-4">
                             <label asp-for="RequestDate" class="form-label fw-medium">Request Date <span class="text-danger">*</span></label>
-                            <input asp-for="RequestDate" type="date" class="form-control" />
+                            <input asp-for="RequestDate" asp-format="{0:dd/MM/yyyy}" type="text" class="form-control datepicker-input bg-white" placeholder="dd/mm/yyyy" autocomplete="off" readonly style="cursor:pointer;" />
                             <span asp-validation-for="RequestDate" class="text-danger small mt-1 d-block"></span>
                         </div>
 
                         <!-- Due Date -->
                         <div class="col-md-4">
                             <label asp-for="DueDate" class="form-label fw-medium">Due Date <span class="text-danger">*</span></label>
-                            <input asp-for="DueDate" type="date" class="form-control" />
+                            <input asp-for="DueDate" asp-format="{0:dd/MM/yyyy}" type="text" class="form-control datepicker-input bg-white" placeholder="dd/mm/yyyy" autocomplete="off" readonly style="cursor:pointer;" />
                             <span asp-validation-for="DueDate" class="text-danger small mt-1 d-block"></span>
                         </div>
 
@@ -148,8 +149,17 @@
 
 @section Scripts {
     <script src="~/back/assets/libs/select2/js/select2.min.js"></script>
+    <script src="~/back/assets/libs/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
     @await Html.PartialAsync("_ValidationScriptsPartial")
     <script>
+        // ── Date pickers (dd/mm/yyyy) ─────────────────────────────────
+        $('.datepicker-input').datepicker({
+            format: 'dd/mm/yyyy',
+            autoclose: true,
+            todayHighlight: true,
+            orientation: 'bottom auto'
+        });
+
         const categoryMap = @Html.Raw(Json.Serialize(Model.TaskTypeCategoryMap));
         const CAT_POINT = @((int)TaskCategory.Point);
         const CAT_COUNTER = @((int)TaskCategory.Counter);
@@ -246,6 +256,7 @@
                 toastr.warning('Assign the task to at least one employee.', 'Assignees');
                 return;
             }
+            if (!$(this).valid()) return;
             const btn = document.getElementById('save-btn');
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';

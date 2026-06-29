@@ -111,6 +111,15 @@ namespace Tasks.Presentation
                 app.UseHsts();
             }
 
+            // Use en-GB so dates are parsed/displayed as dd/MM/yyyy across the app
+            var ukCulture = new System.Globalization.CultureInfo("en-GB");
+            app.UseRequestLocalization(new Microsoft.AspNetCore.Builder.RequestLocalizationOptions
+            {
+                DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture(ukCulture),
+                SupportedCultures     = new[] { ukCulture },
+                SupportedUICultures   = new[] { ukCulture }
+            });
+
             app.UseHttpsRedirection();
             app.UseRouting();
 

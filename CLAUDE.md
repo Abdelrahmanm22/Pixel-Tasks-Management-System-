@@ -730,6 +730,11 @@ Pixel.Tasks/
 **Root cause:** `DocumentSettings.UplaodFile` constructs the folder path and immediately opens a `FileStream` without ever creating the directory first.  
 **Correct approach:** Call `Directory.CreateDirectory(FolderPath)` immediately after building `FolderPath` and before opening the stream — it is a no-op if the folder already exists, so it is always safe to include. This must be done for every new upload folder, not just `TaskComments`.
 
+### 2026-06-29 — Submit button stuck on "Saving…" when client validation fails
+**What went wrong:** On Task Create/Edit, clicking Save with a client-side validation error (e.g. Task Type required) left the button permanently disabled showing the "Saving…" spinner, so the user could not retry.  
+**Root cause:** The form's `submit` handler disabled the button and swapped in the spinner *unconditionally*, before jQuery unobtrusive validation ran. When validation then blocked the actual submit, the button stayed stuck.  
+**Correct approach:** Gate the button-disable on validity — `if (!$(this).valid()) return;` (the form is `novalidate`, so call `$(form).valid()` explicitly) *before* disabling the button and showing the spinner. For Edit's SweetAlert confirm path, place the check before the dialog and skip it on the programmatic re-submit (guard with the `confirmed` flag) so a valid form isn't re-validated. All other CRUD forms (User, TaskType, Corporation, Section) already follow this pattern — match it for any new form with a submit spinner.
+
 <!-- 
 FORMAT FOR NEW ENTRIES:
 ### [Date] — Short description
