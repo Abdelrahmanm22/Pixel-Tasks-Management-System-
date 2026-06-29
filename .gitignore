@@ -60,3 +60,6 @@ packages/
 # Temporary files
 *.tmp
 *.temp
+
+# Uploaded files
+wwwroot/Files/
