@@ -6,13 +6,7 @@
     var assignments = ViewBag.Assignments as List<AssignmentProgressViewModel> ?? new();
     var panel = ViewBag.CommentsPanel as CommentsPanelViewModel ?? new CommentsPanelViewModel { WorkTaskId = Model.Id };
 
-    (string cls, string text) StatusBadge(WorkTaskStatus s) => s switch
-    {
-        WorkTaskStatus.Pending    => ("bg-soft-secondary text-secondary", "Pending"),
-        WorkTaskStatus.InProgress => ("bg-soft-info text-info", "In Progress"),
-        WorkTaskStatus.Completed  => ("bg-soft-success text-success", "Completed"),
-        _ => ("bg-soft-secondary text-secondary", s.ToString())
-    };
+    (string cls, string text) StatusBadge(WorkTaskStatus s) => TaskStatusBadge.Resolve(s);
 }
 
 <div class="row">
@@ -79,15 +73,15 @@
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead class="table-light">
-                            <tr><th>Employee</th><th width="120">Status</th><th>Progress</th></tr>
+                            <tr><th>Employee</th><th width="120">Status</th><th>Progress</th><th width="140" class="text-center">Review</th></tr>
                         </thead>
                         <tbody>
                             @foreach (var a in assignments)
                             {
                                 var ast = StatusBadge(a.Status);
-                                <tr>
+                                <tr id="assignment-row-@a.AssignmentId">
                                     <td class="fw-medium">@a.UserName</td>
-                                    <td><span class="badge @ast.cls">@ast.text</span></td>
+                                    <td><span class="badge @ast.cls status-badge">@ast.text</span></td>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
                                             <div class="progress flex-grow-1" style="height:6px;">
@@ -109,6 +103,25 @@
                                             </small>
                                         </div>
                                     </td>
+                                    <td class="text-center review-cell">
+                                        <permission required="@Permissions.Tasks.Review">
+                                            @if (a.Status == WorkTaskStatus.Reviewed)
+                                            {
+                                                <span class="badge bg-soft-primary text-primary"><i class="bx bx-check-double me-1"></i>Reviewed</span>
+                                            }
+                                            else if (a.Status == WorkTaskStatus.Completed)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-primary btn-review"
+                                                        data-task-id="@Model.Id" data-assignment-id="@a.AssignmentId" data-name="@a.UserName">
+                                                    <i class="bx bx-check-double me-1"></i>Mark Reviewed
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted small">—</span>
+                                            }
+                                        </permission>
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -122,3 +135,52 @@
         @await Html.PartialAsync("_CommentsChat", panel)
     </div>
 </div>
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script>
+        $(document).on('click', '.btn-review', function () {
+            const btn          = $(this);
+            const taskId       = btn.data('task-id');
+            const assignmentId = btn.data('assignment-id');
+            const name         = btn.data('name');
+
+            Swal.fire({
+                title: 'Mark as Reviewed?',
+                html: `Confirm that <strong>"${name}"</strong>'s work has been reviewed.<br><small class="text-muted">This is final and will lock their task from further changes.</small>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#556ee6',
+                cancelButtonColor: '#74788d',
+                confirmButtonText: '<i class="bx bx-check-double me-1"></i> Yes, Mark Reviewed',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+
+                const data = new FormData();
+                data.append('workTaskId', taskId);
+                data.append('assignmentId', assignmentId);
+                data.append('__RequestVerificationToken', $('input[name="__RequestVerificationToken"]').val());
+
+                fetch('/Task/MarkAssignmentReviewed', { method: 'POST', body: data })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) {
+                            const row = $(`#assignment-row-${assignmentId}`);
+                            row.find('.status-badge')
+                               .removeClass()
+                               .addClass('badge bg-soft-primary text-primary status-badge')
+                               .text('Reviewed');
+                            row.find('.review-cell').html('<span class="badge bg-soft-primary text-primary"><i class="bx bx-check-double me-1"></i>Reviewed</span>');
+                            toastr.success(res.message, 'Reviewed', { closeButton: true, progressBar: true, timeOut: 4000 });
+                        } else {
+                            toastr.error(res.message || 'Failed.', 'Error', { timeOut: 5000 });
+                        }
+                    })
+                    .catch(() => toastr.error('An unexpected error occurred.', 'Error', { timeOut: 5000 }));
+            });
+        });
+    </script>
+}

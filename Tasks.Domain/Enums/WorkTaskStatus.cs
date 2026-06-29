@@ -8,6 +8,7 @@ namespace Tasks.Domain.Enums
     {
         Pending    = 1,
         InProgress = 2,
-        Completed  = 3
+        Completed  = 3,
+        Reviewed   = 4
     }
 }

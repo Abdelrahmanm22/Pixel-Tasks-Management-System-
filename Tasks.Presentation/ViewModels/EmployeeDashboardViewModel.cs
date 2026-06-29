@@ -9,9 +9,12 @@ namespace Tasks.Presentation.ViewModels
         public int PendingTasks { get; set; }
         public int InProgressTasks { get; set; }
         public int CompletedTasks { get; set; }
+        public int ReviewedTasks { get; set; }
         public int OverdueTasks { get; set; }
 
-        public int CompletionRate => TotalTasks > 0 ? CompletedTasks * 100 / TotalTasks : 0;
+        // "Done" = work I have finished, whether or not the admin has reviewed it.
+        public int DoneTasks => CompletedTasks + ReviewedTasks;
+        public int CompletionRate => TotalTasks > 0 ? DoneTasks * 100 / TotalTasks : 0;
 
         // ─── Charts ──────────────────────────────────────────────────────────
         // My tasks by Priority

@@ -4,6 +4,7 @@
     ViewData["Title"] = "Task";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var panel = Model.CommentsPanel;
+    var locked = Model.MyStatus == WorkTaskStatus.Reviewed;
 
     (string cls, string text) PriorityBadge(PriorityLevel p) => p switch
     {
@@ -53,6 +54,14 @@
 
                 <hr />
 
+                @if (locked)
+                {
+                    <div class="alert alert-primary d-flex align-items-center mb-3" role="alert">
+                        <i class="bx bx-lock-alt fs-4 me-2"></i>
+                        <div>This task has been <strong>reviewed</strong> by the admin and is now locked. No further changes can be made.</div>
+                    </div>
+                }
+
                 @if (Model.Category == TaskCategory.Point)
                 {
                     <h6 class="fw-semibold mb-2"><i class="bx bx-list-check me-1"></i>Checklist</h6>
@@ -61,7 +70,7 @@
                         {
                             <label class="list-group-item d-flex align-items-center gap-2">
                                 <input class="form-check-input mt-0 point-check" type="checkbox"
-                                       data-id="@p.PointStatusId" @(p.IsCompleted ? "checked" : "") />
+                                       data-id="@p.PointStatusId" @(p.IsCompleted ? "checked" : "") @(locked ? "disabled" : "") />
                                 <span class="@(p.IsCompleted ? "text-decoration-line-through text-muted" : "")">@p.Description</span>
                             </label>
                         }
@@ -71,12 +80,12 @@
                 {
                     <h6 class="fw-semibold mb-2"><i class="bx bx-line-chart me-1"></i>Update Progress</h6>
                     <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-outline-secondary" type="button" id="counter-minus"><i class="bx bx-minus"></i></button>
+                        <button class="btn btn-outline-secondary" type="button" id="counter-minus" @(locked ? "disabled" : "")><i class="bx bx-minus"></i></button>
                         <input type="number" class="form-control text-center" id="counter-input" style="max-width:120px;"
-                               value="@(Model.CompletedCount ?? 0)" min="0" max="@Model.TargetCount" />
-                        <button class="btn btn-outline-secondary" type="button" id="counter-plus"><i class="bx bx-plus"></i></button>
+                               value="@(Model.CompletedCount ?? 0)" min="0" max="@Model.TargetCount" @(locked ? "disabled" : "") />
+                        <button class="btn btn-outline-secondary" type="button" id="counter-plus" @(locked ? "disabled" : "")><i class="bx bx-plus"></i></button>
                         <span class="text-muted">of <strong>@Model.TargetCount</strong></span>
-                        <button class="btn btn-primary ms-2" type="button" id="counter-save"><i class="bx bx-save me-1"></i>Save</button>
+                        <button class="btn btn-primary ms-2" type="button" id="counter-save" @(locked ? "disabled" : "")><i class="bx bx-save me-1"></i>Save</button>
                     </div>
                 }
                 else
@@ -84,11 +93,11 @@
                     <h6 class="fw-semibold mb-2"><i class="bx bx-check-circle me-1"></i>Status</h6>
                     <div class="btn-group" role="group" id="status-group">
                         <button type="button" class="btn @(Model.MyStatus == WorkTaskStatus.Pending ? "btn-secondary" : "btn-outline-secondary")"
-                                data-status="@((int)WorkTaskStatus.Pending)">Pending</button>
+                                data-status="@((int)WorkTaskStatus.Pending)" @(locked ? "disabled" : "")>Pending</button>
                         <button type="button" class="btn @(Model.MyStatus == WorkTaskStatus.InProgress ? "btn-info" : "btn-outline-info")"
-                                data-status="@((int)WorkTaskStatus.InProgress)">In Progress</button>
+                                data-status="@((int)WorkTaskStatus.InProgress)" @(locked ? "disabled" : "")>In Progress</button>
                         <button type="button" class="btn @(Model.MyStatus == WorkTaskStatus.Completed ? "btn-success" : "btn-outline-success")"
-                                data-status="@((int)WorkTaskStatus.Completed)"><i class="bx bx-check me-1"></i>Completed</button>
+                                data-status="@((int)WorkTaskStatus.Completed)" @(locked ? "disabled" : "")><i class="bx bx-check me-1"></i>Completed</button>
                     </div>
                 }
             </div>

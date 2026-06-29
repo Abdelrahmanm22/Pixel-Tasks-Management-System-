@@ -31,6 +31,7 @@ namespace Tasks.Domain.Authorization
             public const string ViewAssigned    = "Tasks.ViewAssigned";
             public const string Comment         = "Tasks.Comment";
             public const string UpdateProgress  = "Tasks.UpdateProgress";
+            public const string Review          = "Tasks.Review";
         }
 
         public static IEnumerable<string> GetAll()
@@ -44,6 +45,7 @@ namespace Tasks.Domain.Authorization
             yield return Tasks.ViewAssigned;
             yield return Tasks.Comment;
             yield return Tasks.UpdateProgress;
+            yield return Tasks.Review;
         }
     }
 }

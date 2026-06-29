@@ -26,7 +26,7 @@ namespace Tasks.Presentation.ViewModels
         public int ProgressPercent { get; set; }
         public string? AssigneeName { get; set; }
 
-        public bool IsOverdue => DueDate.Date < DateTime.UtcNow.Date && Status != WorkTaskStatus.Completed;
+        public bool IsOverdue => DueDate.Date < DateTime.UtcNow.Date && Status != WorkTaskStatus.Completed && Status != WorkTaskStatus.Reviewed;
         public int DaysLeft => (int)(DueDate.Date - DateTime.UtcNow.Date).TotalDays;
     }
 

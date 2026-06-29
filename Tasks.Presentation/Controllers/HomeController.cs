@@ -77,7 +77,8 @@ namespace Tasks.Presentation.Controllers
                 PendingTasks = tasks.Count(t => t.Status == WorkTaskStatus.Pending),
                 InProgressTasks = tasks.Count(t => t.Status == WorkTaskStatus.InProgress),
                 CompletedTasks = tasks.Count(t => t.Status == WorkTaskStatus.Completed),
-                OverdueTasks = tasks.Count(t => t.DueDate.Date < today && t.Status != WorkTaskStatus.Completed),
+                ReviewedTasks = tasks.Count(t => t.Status == WorkTaskStatus.Reviewed),
+                OverdueTasks = tasks.Count(t => t.DueDate.Date < today && t.Status != WorkTaskStatus.Completed && t.Status != WorkTaskStatus.Reviewed),
 
                 ActiveEmployees = employees.Count(u => u.IsActive),
                 CorporationCount = corporations.Count(),
@@ -105,7 +106,7 @@ namespace Tasks.Presentation.Controllers
 
             // Overdue + due within the next 7 days, soonest first
             vm.OverdueAndDueSoon = tasks
-                .Where(t => t.Status != WorkTaskStatus.Completed && t.DueDate.Date <= today.AddDays(7))
+                .Where(t => t.Status != WorkTaskStatus.Completed && t.Status != WorkTaskStatus.Reviewed && t.DueDate.Date <= today.AddDays(7))
                 .OrderBy(t => t.DueDate)
                 .Take(FeedSize)
                 .Select(t => new DashboardTaskItem
@@ -133,7 +134,7 @@ namespace Tasks.Presentation.Controllers
                     UserName = g.Key.FullName,
                     ImageUrl = g.Key.ImageUrl,
                     Gender = g.Key.Gender,
-                    CompletedCount = g.Count(a => a.Status == WorkTaskStatus.Completed),
+                    CompletedCount = g.Count(a => a.Status is WorkTaskStatus.Completed or WorkTaskStatus.Reviewed),
                     TotalAssigned = g.Count()
                 })
                 .OrderByDescending(x => x.CompletedCount)
@@ -171,7 +172,8 @@ namespace Tasks.Presentation.Controllers
                 PendingTasks = mine.Count(x => x.Assignment!.Status == WorkTaskStatus.Pending),
                 InProgressTasks = mine.Count(x => x.Assignment!.Status == WorkTaskStatus.InProgress),
                 CompletedTasks = mine.Count(x => x.Assignment!.Status == WorkTaskStatus.Completed),
-                OverdueTasks = mine.Count(x => x.Task.DueDate.Date < today && x.Assignment!.Status != WorkTaskStatus.Completed),
+                ReviewedTasks = mine.Count(x => x.Assignment!.Status == WorkTaskStatus.Reviewed),
+                OverdueTasks = mine.Count(x => x.Task.DueDate.Date < today && x.Assignment!.Status != WorkTaskStatus.Completed && x.Assignment!.Status != WorkTaskStatus.Reviewed),
 
                 PriorityLow = mine.Count(x => x.Task.Priority == PriorityLevel.Low),
                 PriorityMedium = mine.Count(x => x.Task.Priority == PriorityLevel.Medium),
@@ -179,13 +181,13 @@ namespace Tasks.Presentation.Controllers
                 PriorityCritical = mine.Count(x => x.Task.Priority == PriorityLevel.Critical),
 
                 CompletionTrend = MonthlyBuckets(
-                    mine.Where(x => x.Assignment!.Status == WorkTaskStatus.Completed).Select(x => x.Task.DueDate),
+                    mine.Where(x => x.Assignment!.Status is WorkTaskStatus.Completed or WorkTaskStatus.Reviewed).Select(x => x.Task.DueDate),
                     TrendMonths),
             };
 
             // Active tasks (not yet completed) with live progress, soonest due first
             vm.ActiveProgress = mine
-                .Where(x => x.Assignment!.Status != WorkTaskStatus.Completed)
+                .Where(x => x.Assignment!.Status != WorkTaskStatus.Completed && x.Assignment!.Status != WorkTaskStatus.Reviewed)
                 .OrderBy(x => x.Task.DueDate)
                 .Take(TableSize)
                 .Select(x => ToTaskItem(x.Task, x.Assignment!))
@@ -193,7 +195,7 @@ namespace Tasks.Presentation.Controllers
 
             // Upcoming deadlines — same pool, but always show the nearest dates
             vm.UpcomingDeadlines = mine
-                .Where(x => x.Assignment!.Status != WorkTaskStatus.Completed)
+                .Where(x => x.Assignment!.Status != WorkTaskStatus.Completed && x.Assignment!.Status != WorkTaskStatus.Reviewed)
                 .OrderBy(x => x.Task.DueDate)
                 .Take(TableSize)
                 .Select(x => ToTaskItem(x.Task, x.Assignment!))
@@ -251,7 +253,7 @@ namespace Tasks.Presentation.Controllers
                     if (target == 0) return 0;
                     return Math.Min(100, (assignment.CompletedCount ?? 0) * 100 / target);
                 default:
-                    return assignment.Status == WorkTaskStatus.Completed ? 100 : 0;
+                    return assignment.Status is WorkTaskStatus.Completed or WorkTaskStatus.Reviewed ? 100 : 0;
             }
         }
 
@@ -260,7 +262,7 @@ namespace Tasks.Presentation.Controllers
         private static int AssigneeCompletionPercent(WorkTask task)
         {
             if (task.Assignments.Count == 0) return 0;
-            var done = task.Assignments.Count(a => a.Status == WorkTaskStatus.Completed);
+            var done = task.Assignments.Count(a => a.Status is WorkTaskStatus.Completed or WorkTaskStatus.Reviewed);
             return done * 100 / task.Assignments.Count;
         }
 

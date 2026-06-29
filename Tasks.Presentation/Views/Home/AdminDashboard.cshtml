@@ -26,6 +26,7 @@
             ("Pending",         Model.PendingTasks,     "bx-time-five",       "secondary"),
             ("In Progress",     Model.InProgressTasks,  "bx-loader-circle",   "info"),
             ("Completed",       Model.CompletedTasks,   "bx-check-double",    "success"),
+            ("Reviewed",        Model.ReviewedTasks,    "bx-badge-check",     "primary"),
             ("Overdue",         Model.OverdueTasks,     "bx-error-circle",    "danger"),
             ("Active Employees",Model.ActiveEmployees,  "bx-group",           "primary"),
             ("Corporations",    Model.CorporationCount, "bx-buildings",       "warning"),
@@ -69,7 +70,7 @@
             <div class="card-body">
                 <h4 class="card-title mb-3">Completion Rate</h4>
                 <div id="completionChart"></div>
-                <p class="text-center text-muted mb-0">@Model.CompletedTasks of @Model.TotalTasks tasks completed</p>
+                <p class="text-center text-muted mb-0">@Model.DoneTasks of @Model.TotalTasks tasks done</p>
             </div>
         </div>
     </div>
@@ -262,9 +263,9 @@
             // Tasks by Status — donut
             new ApexCharts(document.querySelector("#statusChart"), {
                 chart: { type: 'donut', height: 260 },
-                series: [@Model.PendingTasks, @Model.InProgressTasks, @Model.CompletedTasks],
-                labels: ['Pending', 'In Progress', 'Completed'],
-                colors: ['#74788d', '#50a5f1', '#34c38f'],
+                series: [@Model.PendingTasks, @Model.InProgressTasks, @Model.CompletedTasks, @Model.ReviewedTasks],
+                labels: ['Pending', 'In Progress', 'Completed', 'Reviewed'],
+                colors: ['#74788d', '#50a5f1', '#34c38f', '#556ee6'],
                 legend: { position: 'bottom' }
             }).render();
 
@@ -272,7 +273,7 @@
             new ApexCharts(document.querySelector("#completionChart"), {
                 chart: { type: 'radialBar', height: 260 },
                 series: [@Model.CompletionRate],
-                labels: ['Completed'],
+                labels: ['Done'],
                 colors: ['#34c38f'],
                 plotOptions: { radialBar: { hollow: { size: '60%' }, dataLabels: { value: { fontSize: '22px' } } } }
             }).render();

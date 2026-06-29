@@ -47,6 +47,7 @@
             ("Pending",     Model.PendingTasks,    "bx-time-five",     "secondary"),
             ("In Progress", Model.InProgressTasks, "bx-loader-circle", "info"),
             ("Completed",   Model.CompletedTasks,  "bx-check-double",  "success"),
+            ("Reviewed",    Model.ReviewedTasks,   "bx-badge-check",   "primary"),
             ("Overdue",     Model.OverdueTasks,    "bx-error-circle",  "danger"),
         };
     }
@@ -227,7 +228,7 @@
             new ApexCharts(document.querySelector("#myCompletionChart"), {
                 chart: { type: 'radialBar', height: 240 },
                 series: [@Model.CompletionRate],
-                labels: ['Completed'],
+                labels: ['Done'],
                 colors: ['#34c38f'],
                 plotOptions: { radialBar: { hollow: { size: '58%' }, dataLabels: { value: { fontSize: '20px' } } } }
             }).render();

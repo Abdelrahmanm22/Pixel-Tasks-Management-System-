@@ -342,7 +342,7 @@ namespace Tasks.Presentation.Controllers
             var tasks = await _unitOfWork.Repository<WorkTask>().GetAllAsync(new WorkTaskByUserSpec(userId));
 
             var list = BuildMyTasks(tasks, userId)
-                .Where(t => t.MyStatus is WorkTaskStatus.Pending or WorkTaskStatus.InProgress)
+                .Where(t => t.MyStatus != WorkTaskStatus.Reviewed)
                 .ToList();
 
             return View(list);
@@ -365,7 +365,7 @@ namespace Tasks.Presentation.Controllers
             var tasks = await _unitOfWork.Repository<WorkTask>().GetAllAsync(new WorkTaskByCreatorSpec(userId));
 
             var list = tasks
-                .Where(t => t.Status is WorkTaskStatus.Pending or WorkTaskStatus.InProgress)
+                .Where(t => t.Status != WorkTaskStatus.Reviewed)
                 .Select(t =>
                 {
                     var category = t.TaskType.Category;
@@ -488,6 +488,9 @@ namespace Tasks.Presentation.Controllers
             if (assignment is null)
                 return Json(new { success = false, message = "Not authorized for this task." });
 
+            if (assignment.Status == WorkTaskStatus.Reviewed)
+                return Json(new { success = false, message = "This task has been reviewed and is locked." });
+
             var ps = assignment.PointStatuses.FirstOrDefault(p => p.Id == pointStatusId);
             if (ps is null)
                 return Json(new { success = false, message = "Point not found." });
@@ -507,6 +510,9 @@ namespace Tasks.Presentation.Controllers
             if (assignment is null)
                 return Json(new { success = false, message = "Not authorized for this task." });
 
+            if (assignment.Status == WorkTaskStatus.Reviewed)
+                return Json(new { success = false, message = "This task has been reviewed and is locked." });
+
             var target = task!.TargetCount ?? 0;
             assignment.CompletedCount = Math.Clamp(value, 0, target);
 
@@ -522,6 +528,9 @@ namespace Tasks.Presentation.Controllers
             if (assignment is null)
                 return Json(new { success = false, message = "Not authorized for this task." });
 
+            if (assignment.Status == WorkTaskStatus.Reviewed)
+                return Json(new { success = false, message = "This task has been reviewed and is locked." });
+
             // Explicit status only applies to Normal tasks; others are auto-computed.
             if (task!.TaskType.Category != TaskCategory.Normal)
                 return Json(new { success = false, message = "Status is computed automatically for this task type." });
@@ -532,6 +541,39 @@ namespace Tasks.Presentation.Controllers
             assignment.Status = status;
 
             return await SaveProgressAsync(task, assignment, recomputeAssignment: false);
+        }
+
+        // ─── Admin: review sign-off ──────────────────────────────────────────
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Policy = Permissions.Tasks.Review)]
+        public async Task<IActionResult> MarkAssignmentReviewed(int workTaskId, int assignmentId)
+        {
+            var task = await _unitOfWork.Repository<WorkTask>().GetByIdAsync(new WorkTaskSpec(workTaskId));
+            if (task is null)
+                return Json(new { success = false, message = "Task not found." });
+
+            var assignment = task.Assignments.FirstOrDefault(a => a.Id == assignmentId);
+            if (assignment is null)
+                return Json(new { success = false, message = "Assignment not found." });
+
+            if (assignment.Status != WorkTaskStatus.Completed)
+                return Json(new { success = false, message = "Only completed work can be reviewed." });
+
+            assignment.Status = WorkTaskStatus.Reviewed;
+            RecomputeTaskStatus(task);
+
+            _unitOfWork.Repository<WorkTask>().Update(task);
+            await _unitOfWork.CompleteAsync();
+
+            return Json(new
+            {
+                success = true,
+                message = $"{assignment.User?.FullName ?? "Employee"}'s work has been marked as reviewed.",
+                assignmentStatus = assignment.Status.ToString(),
+                taskStatus = task.Status.ToString()
+            });
         }
 
         // ─── Comments (admin creator + assignees) ────────────────────────────
@@ -772,6 +814,10 @@ namespace Tasks.Presentation.Controllers
 
         private void RecomputeAssignmentStatus(TaskAssignment assignment, WorkTask task)
         {
+            // Reviewed is a final state set by the admin — never recompute over it.
+            if (assignment.Status == WorkTaskStatus.Reviewed)
+                return;
+
             var category = task.TaskType.Category;
             if (category == TaskCategory.Point)
             {
@@ -799,7 +845,9 @@ namespace Tasks.Presentation.Controllers
                 task.Status = WorkTaskStatus.Pending;
                 return;
             }
-            if (task.Assignments.All(a => a.Status == WorkTaskStatus.Completed))
+            if (task.Assignments.All(a => a.Status == WorkTaskStatus.Reviewed))
+                task.Status = WorkTaskStatus.Reviewed;
+            else if (task.Assignments.All(a => a.Status is WorkTaskStatus.Completed or WorkTaskStatus.Reviewed))
                 task.Status = WorkTaskStatus.Completed;
             else if (task.Assignments.Any(a => a.Status != WorkTaskStatus.Pending))
                 task.Status = WorkTaskStatus.InProgress;

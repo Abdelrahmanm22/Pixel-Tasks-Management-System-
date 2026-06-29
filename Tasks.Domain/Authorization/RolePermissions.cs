@@ -14,6 +14,7 @@ namespace Tasks.Domain.Authorization
                     Permissions.Tasks.Create,
                     Permissions.Tasks.ViewAll,
                     Permissions.Tasks.Comment,
+                    Permissions.Tasks.Review,
                 },
                 [Roles.Employee] = new[]
                 {

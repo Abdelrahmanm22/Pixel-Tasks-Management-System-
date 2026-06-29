@@ -7,13 +7,16 @@ namespace Tasks.Presentation.ViewModels
         public int PendingTasks { get; set; }
         public int InProgressTasks { get; set; }
         public int CompletedTasks { get; set; }
+        public int ReviewedTasks { get; set; }
         public int OverdueTasks { get; set; }
 
         public int ActiveEmployees { get; set; }
         public int CorporationCount { get; set; }
         public int SectionCount { get; set; }
 
-        public int CompletionRate => TotalTasks > 0 ? CompletedTasks * 100 / TotalTasks : 0;
+        // "Done" = work that is finished, whether or not it has been signed off.
+        public int DoneTasks => CompletedTasks + ReviewedTasks;
+        public int CompletionRate => TotalTasks > 0 ? DoneTasks * 100 / TotalTasks : 0;
 
         // ─── Charts ──────────────────────────────────────────────────────────
         // Tasks by Priority (Low / Medium / High / Critical)
