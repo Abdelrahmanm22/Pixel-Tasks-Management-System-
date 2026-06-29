@@ -33,6 +33,45 @@
     .pt-msg.mine .pt-msg-bubble a { color: #fff; }
 
     .pt-msg-time { font-size: .68rem; color: #adb5bd; margin-top: .25rem; padding: 0 .25rem; }
+
+    /* Conversation (assignee thread) selector */
+    .pt-thread { position: relative; }
+    .pt-thread-toggle {
+        width: 100%; display: flex; align-items: center; gap: .65rem;
+        padding: .55rem .75rem; border: 1px solid #e4e7ee; border-radius: 12px;
+        background: #fff; color: #495057; text-align: left;
+        transition: border-color .15s, box-shadow .15s;
+    }
+    .pt-thread-toggle:hover { border-color: #c9cfde; }
+    .pt-thread.show .pt-thread-toggle {
+        border-color: #556ee6; box-shadow: 0 0 0 2px rgba(85, 110, 230, .12);
+    }
+    .pt-thread-toggle::after { display: none; }
+    .pt-thread-toggle .pt-thread-name { flex: 1 1 auto; font-weight: 600; }
+    .pt-thread-toggle .pt-thread-caret { color: #adb5bd; font-size: 1.15rem; transition: transform .15s; }
+    .pt-thread.show .pt-thread-toggle .pt-thread-caret { transform: rotate(180deg); }
+
+    .pt-thread-avatar {
+        width: 34px; height: 34px; border-radius: 50%; object-fit: cover;
+        flex-shrink: 0; background: #eef0f5;
+    }
+
+    .pt-thread-menu {
+        width: 100%; padding: .35rem; border: 1px solid #eaecf2; border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(18, 38, 63, .12); margin-top: .4rem;
+    }
+    .pt-thread-search { padding: .25rem .25rem .4rem; }
+    .pt-thread-search input { border-radius: 9px; }
+
+    .pt-thread-item {
+        display: flex; align-items: center; gap: .65rem;
+        padding: .5rem .6rem; border-radius: 10px; cursor: pointer;
+        color: #495057; white-space: normal;
+    }
+    .pt-thread-item:hover { background: #f4f5fb; color: #495057; }
+    .pt-thread-item.active { background: #eef1fe; color: #3b52d4; }
+    .pt-thread-item .pt-thread-item-name { flex: 1 1 auto; font-weight: 500; }
+    .pt-thread-item .pt-thread-check { color: #556ee6; font-size: 1.2rem; }
 </style>
 
 <div class="card mb-0">
@@ -48,21 +87,46 @@
         @* Admin-only assignee thread selector *@
         @if (Model.IsAdminView && Model.Assignees.Any())
         {
+            var selected = Model.Assignees.FirstOrDefault(a => a.AssignmentId == Model.TaskAssignmentId)
+                           ?? Model.Assignees.First();
+            var showSearch = Model.Assignees.Count > 5;
             <div class="mb-3">
                 <label class="form-label small text-muted mb-1">Conversation with</label>
-                <select id="thread-selector" class="form-select form-select-sm">
-                    @foreach (var a in Model.Assignees)
-                    {
-                        if (a.AssignmentId == Model.TaskAssignmentId)
+                <div class="dropdown pt-thread">
+                    <button class="pt-thread-toggle dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <img class="pt-thread-avatar"
+                             src="@AvatarHelper.Resolve(selected.UserImageUrl, selected.UserGender)"
+                             alt="@selected.UserName" />
+                        <span class="pt-thread-name">@selected.UserName</span>
+                        <i class="bx bx-chevron-down pt-thread-caret"></i>
+                    </button>
+                    <div class="dropdown-menu pt-thread-menu">
+                        @if (showSearch)
                         {
-                            <option value="@a.AssignmentId" selected>@a.UserName</option>
+                            <div class="pt-thread-search">
+                                <input type="text" id="thread-search" class="form-control form-control-sm"
+                                       placeholder="Search..." autocomplete="off" />
+                            </div>
                         }
-                        else
-                        {
-                            <option value="@a.AssignmentId">@a.UserName</option>
-                        }
-                    }
-                </select>
+                        <div id="thread-options">
+                            @foreach (var a in Model.Assignees)
+                            {
+                                <div class="pt-thread-item thread-option @(a.AssignmentId == Model.TaskAssignmentId ? "active" : "")"
+                                     data-assignment-id="@a.AssignmentId">
+                                    <img class="pt-thread-avatar"
+                                         src="@AvatarHelper.Resolve(a.UserImageUrl, a.UserGender)"
+                                         alt="@a.UserName" />
+                                    <span class="pt-thread-item-name">@a.UserName</span>
+                                    @if (a.AssignmentId == Model.TaskAssignmentId)
+                                    {
+                                        <i class="bx bx-check pt-thread-check"></i>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
             </div>
         }
         else if (Model.IsAdminView && !Model.Assignees.Any())
@@ -177,12 +241,25 @@
         }
 
         // Admin thread selector — navigate to the selected employee's thread
-        var selector = document.getElementById('thread-selector');
-        if (selector) {
-            selector.addEventListener('change', function () {
+        document.querySelectorAll('.thread-option').forEach(function (item) {
+            item.addEventListener('click', function () {
                 var url = new URL(window.location.href);
-                url.searchParams.set('assignmentId', this.value);
+                url.searchParams.set('assignmentId', this.getAttribute('data-assignment-id'));
                 window.location.href = url.toString();
+            });
+        });
+
+        // Search filter inside the thread dropdown
+        var threadSearch = document.getElementById('thread-search');
+        if (threadSearch) {
+            // Keep the dropdown open while interacting with the search box
+            threadSearch.addEventListener('click', function (e) { e.stopPropagation(); });
+            threadSearch.addEventListener('input', function () {
+                var term = this.value.trim().toLowerCase();
+                document.querySelectorAll('#thread-options .thread-option').forEach(function (item) {
+                    var name = (item.textContent || '').toLowerCase();
+                    item.style.display = name.indexOf(term) !== -1 ? '' : 'none';
+                });
             });
         }
     })();

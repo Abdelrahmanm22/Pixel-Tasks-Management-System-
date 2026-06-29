@@ -89,10 +89,12 @@ namespace Tasks.Presentation.Controllers
                 TaskAssignmentId = selectedAssignmentId,
                 Comments = comments,
                 IsAdminView = true,
-                Assignees = assignments.Select(a => new AssigneeDropdownItem
+                Assignees = task.Assignments.Select(a => new AssigneeDropdownItem
                 {
-                    AssignmentId = a.AssignmentId,
-                    UserName = a.UserName ?? "Unknown"
+                    AssignmentId = a.Id,
+                    UserName = a.User?.FullName ?? "Unknown",
+                    UserImageUrl = a.User?.ImageUrl,
+                    UserGender = a.User?.Gender ?? Gender.Male
                 }).ToList(),
                 ReturnUrl = Url.Action("Details", new { id, assignmentId = selectedAssignmentId })!
             };

@@ -1,3 +1,5 @@
+using Tasks.Domain.Enums;
+
 namespace Tasks.Presentation.ViewModels
 {
     // Model for the shared _CommentsChat partial (used by admin Details and employee Work views).
@@ -17,5 +19,7 @@ namespace Tasks.Presentation.ViewModels
     {
         public int AssignmentId { get; set; }
         public string UserName { get; set; } = string.Empty;
+        public string? UserImageUrl { get; set; }
+        public Gender UserGender { get; set; }
     }
 }
