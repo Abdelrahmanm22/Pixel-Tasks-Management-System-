@@ -419,12 +419,12 @@ The Task feature. Assignments are **materialized per-employee at creation time**
 | `Work` | GET | `Tasks.ViewAssigned` | Employee working view (points checklist / counter bar / Normal toggle) + chat. Guards assignment ownership |
 | `TogglePoint` | POST | `Tasks.UpdateProgress` | AJAX flip a TaskPointStatus, recompute statuses, return progress |
 | `UpdateCounter` | POST | `Tasks.UpdateProgress` | AJAX set CompletedCount (clamped), recompute, return progress |
-| `ToggleDone` | POST | `Tasks.UpdateProgress` | AJAX Normal-type completion toggle |
+| `SetStatus` | POST | `Tasks.UpdateProgress` | AJAX Normal-type explicit status set (Pending / InProgress / Completed); rejects non-Normal types |
 | `AddComment` | POST | `Tasks.Comment` | AJAX text/image/file (exactly one type); saved via `DocumentSettings.UplaodFile`; returns rendered comment |
 | `GetSectionsByCorporation` | GET | `Tasks.Create` | Sections-for-corporation dropdown (AJAX) |
 | `GetAvailableEmployees` | GET | `Tasks.Create` | Active **employees** (Employee role) in corp filtered by optional section (AJAX) |
 
-Status recompute helpers (`RecomputeAssignmentStatus` / `RecomputeTaskStatus`): Point assignment Completed when all its points checked; Counter when CompletedCount ≥ TargetCount; Normal set explicitly by `ToggleDone`. Task = Completed when all assignments Completed, InProgress when any started, else Pending.
+Status recompute helpers (`RecomputeAssignmentStatus` / `RecomputeTaskStatus`): Point assignment Completed when all its points checked; Counter when CompletedCount ≥ TargetCount; Normal set explicitly by `SetStatus` (Pending=0% / InProgress=50% / Completed=100%). Task = Completed when all assignments Completed, InProgress when any started, else Pending.
 
 ### Views Structure
 

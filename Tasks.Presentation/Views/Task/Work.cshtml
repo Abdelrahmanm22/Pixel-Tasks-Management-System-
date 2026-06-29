@@ -81,13 +81,14 @@
                 }
                 else
                 {
-                    <h6 class="fw-semibold mb-2"><i class="bx bx-check-circle me-1"></i>Completion</h6>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch" id="done-switch"
-                               @(Model.MyStatus == WorkTaskStatus.Completed ? "checked" : "") style="transform:scale(1.4);" />
-                        <label class="form-check-label ms-2" for="done-switch" id="done-label">
-                            @(Model.MyStatus == WorkTaskStatus.Completed ? "Completed" : "Mark as done")
-                        </label>
+                    <h6 class="fw-semibold mb-2"><i class="bx bx-check-circle me-1"></i>Status</h6>
+                    <div class="btn-group" role="group" id="status-group">
+                        <button type="button" class="btn @(Model.MyStatus == WorkTaskStatus.Pending ? "btn-secondary" : "btn-outline-secondary")"
+                                data-status="@((int)WorkTaskStatus.Pending)">Pending</button>
+                        <button type="button" class="btn @(Model.MyStatus == WorkTaskStatus.InProgress ? "btn-info" : "btn-outline-info")"
+                                data-status="@((int)WorkTaskStatus.InProgress)">In Progress</button>
+                        <button type="button" class="btn @(Model.MyStatus == WorkTaskStatus.Completed ? "btn-success" : "btn-outline-success")"
+                                data-status="@((int)WorkTaskStatus.Completed)"><i class="bx bx-check me-1"></i>Completed</button>
                     </div>
                 }
             </div>
@@ -155,19 +156,42 @@
             });
         }
 
-        // Normal done switch
-        const doneSwitch = document.getElementById('done-switch');
-        if (doneSwitch) {
-            doneSwitch.addEventListener('change', function () {
-                const data = new FormData();
-                data.append('workTaskId', taskId);
-                post('/Task/ToggleDone', data).then(res => {
-                    if (res.success) {
-                        setProgress(res.progressPercent);
-                        document.getElementById('done-label').textContent =
-                            res.assignmentStatus === 'Completed' ? 'Completed' : 'Mark as done';
-                    } else { this.checked = !this.checked; toastr.error(res.message || 'Failed.', 'Error'); }
-                }).catch(() => { this.checked = !this.checked; toastr.error('Error', 'Error'); });
+        // Normal status (segmented buttons)
+        const statusGroup = document.getElementById('status-group');
+        if (statusGroup) {
+            // active class per status value: Pending=1, InProgress=2, Completed=3
+            const solid   = { 1: 'btn-secondary', 2: 'btn-info', 3: 'btn-success' };
+            const outline = { 1: 'btn-outline-secondary', 2: 'btn-outline-info', 3: 'btn-outline-success' };
+
+            function setActive(status) {
+                statusGroup.querySelectorAll('button').forEach(b => {
+                    const s = b.dataset.status;
+                    const isActive = s === String(status);
+                    b.classList.toggle(solid[s], isActive);
+                    b.classList.toggle(outline[s], !isActive);
+                });
+            }
+
+            statusGroup.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const status = this.dataset.status;
+                    const previous = statusGroup.querySelector('button.' + solid[1] + ', button.' + solid[2] + ', button.' + solid[3]);
+                    const prevStatus = previous ? previous.dataset.status : status;
+                    if (prevStatus === status) return;
+
+                    setActive(status);
+                    const data = new FormData();
+                    data.append('workTaskId', taskId);
+                    data.append('status', status);
+                    post('/Task/SetStatus', data).then(res => {
+                        if (res.success) {
+                            setProgress(res.progressPercent);
+                        } else {
+                            setActive(prevStatus);
+                            toastr.error(res.message || 'Failed.', 'Error');
+                        }
+                    }).catch(() => { setActive(prevStatus); toastr.error('Error', 'Error'); });
+                });
             });
         }
     </script>

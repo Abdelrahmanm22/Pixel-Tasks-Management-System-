@@ -516,17 +516,22 @@ namespace Tasks.Presentation.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Policy = Permissions.Tasks.UpdateProgress)]
-        public async Task<IActionResult> ToggleDone(int workTaskId)
+        public async Task<IActionResult> SetStatus(int workTaskId, WorkTaskStatus status)
         {
             var (task, assignment) = await LoadOwnedAsync(workTaskId);
             if (assignment is null)
                 return Json(new { success = false, message = "Not authorized for this task." });
 
-            assignment.Status = assignment.Status == WorkTaskStatus.Completed
-                ? WorkTaskStatus.Pending
-                : WorkTaskStatus.Completed;
+            // Explicit status only applies to Normal tasks; others are auto-computed.
+            if (task!.TaskType.Category != TaskCategory.Normal)
+                return Json(new { success = false, message = "Status is computed automatically for this task type." });
 
-            return await SaveProgressAsync(task!, assignment, recomputeAssignment: false);
+            if (!Enum.IsDefined(status))
+                return Json(new { success = false, message = "Invalid status." });
+
+            assignment.Status = status;
+
+            return await SaveProgressAsync(task, assignment, recomputeAssignment: false);
         }
 
         // ─── Comments (admin creator + assignees) ────────────────────────────
@@ -784,7 +789,7 @@ namespace Tasks.Presentation.Controllers
                                   : done > 0 ? WorkTaskStatus.InProgress
                                   : WorkTaskStatus.Pending;
             }
-            // Normal: status is set explicitly via ToggleDone — leave as-is
+            // Normal: status is set explicitly via SetStatus — leave as-is
         }
 
         private void RecomputeTaskStatus(WorkTask task)
@@ -815,7 +820,12 @@ namespace Tasks.Presentation.Controllers
                     if (target == 0) return 0;
                     return Math.Min(100, (assignment.CompletedCount ?? 0) * 100 / target);
                 default:
-                    return assignment.Status == WorkTaskStatus.Completed ? 100 : 0;
+                    return assignment.Status switch
+                    {
+                        WorkTaskStatus.Completed  => 100,
+                        WorkTaskStatus.InProgress => 50,
+                        _ => 0
+                    };
             }
         }
 
