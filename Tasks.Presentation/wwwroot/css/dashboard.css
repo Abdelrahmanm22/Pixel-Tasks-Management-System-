@@ -1,0 +1,33 @@
+/* Dashboard widgets */
+.dashboard-feed {
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.dashboard-feed::-webkit-scrollbar {
+    width: 5px;
+}
+
+.dashboard-feed::-webkit-scrollbar-thumb {
+    background: #dfe3e8;
+    border-radius: 4px;
+}
+
+.dashboard-feed-item {
+    transition: background-color .15s ease-in-out;
+}
+
+.dashboard-feed-item:hover {
+    background-color: #f8f9fa;
+}
+
+.mini-stats-wid .avatar-title i {
+    line-height: 1;
+}
+
+/* Tighten chart cards so donuts sit centered */
+#statusChart, #priorityChart, #categoryChart,
+#myCompletionChart, #myPriorityChart {
+    display: flex;
+    justify-content: center;
+}

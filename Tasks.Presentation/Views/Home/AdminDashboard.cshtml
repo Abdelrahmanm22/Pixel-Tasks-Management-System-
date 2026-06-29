@@ -1,0 +1,322 @@
+@model AdminDashboardViewModel
+@using Tasks.Domain.Enums
+@using Tasks.Presentation.Helpers
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    (string cls, string text) PriorityBadge(PriorityLevel p) => p switch
+    {
+        PriorityLevel.Low      => ("bg-soft-success text-success", "Low"),
+        PriorityLevel.Medium   => ("bg-soft-warning text-warning", "Medium"),
+        PriorityLevel.High     => ("bg-soft-danger text-danger", "High"),
+        PriorityLevel.Critical => ("bg-danger text-white", "Critical"),
+        _ => ("bg-soft-secondary text-secondary", p.ToString())
+    };
+}
+
+<link href="~/css/dashboard.css" rel="stylesheet" />
+
+@* ─── KPI stat cards ─────────────────────────────────────────────────── *@
+<div class="row">
+    @{
+        (string label, int value, string icon, string color)[] kpis = new[]
+        {
+            ("Total Tasks",     Model.TotalTasks,       "bx-task",            "primary"),
+            ("Pending",         Model.PendingTasks,     "bx-time-five",       "secondary"),
+            ("In Progress",     Model.InProgressTasks,  "bx-loader-circle",   "info"),
+            ("Completed",       Model.CompletedTasks,   "bx-check-double",    "success"),
+            ("Overdue",         Model.OverdueTasks,     "bx-error-circle",    "danger"),
+            ("Active Employees",Model.ActiveEmployees,  "bx-group",           "primary"),
+            ("Corporations",    Model.CorporationCount, "bx-buildings",       "warning"),
+            ("Sections",        Model.SectionCount,     "bx-sitemap",         "info"),
+        };
+    }
+    @foreach (var k in kpis)
+    {
+        <div class="col-xl-3 col-md-6">
+            <div class="card mini-stats-wid">
+                <div class="card-body">
+                    <div class="d-flex">
+                        <div class="flex-grow-1">
+                            <p class="text-muted fw-medium mb-2">@k.label</p>
+                            <h4 class="mb-0">@k.value</h4>
+                        </div>
+                        <div class="avatar-sm align-self-center">
+                            <span class="avatar-title rounded-circle bg-soft-@k.color text-@k.color font-size-22">
+                                <i class="bx @k.icon"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@* ─── Charts row A ──────────────────────────────────────────────────── *@
+<div class="row">
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Tasks by Status</h4>
+                <div id="statusChart"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Completion Rate</h4>
+                <div id="completionChart"></div>
+                <p class="text-center text-muted mb-0">@Model.CompletedTasks of @Model.TotalTasks tasks completed</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Tasks by Priority</h4>
+                <div id="priorityChart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ─── Charts row B ──────────────────────────────────────────────────── *@
+<div class="row">
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Tasks by Type</h4>
+                <div id="categoryChart"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-8">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Tasks Created Over Time</h4>
+                <div id="trendChart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ─── Workload + leaderboard ────────────────────────────────────────── *@
+<div class="row">
+    <div class="col-xl-8">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Workload by Corporation</h4>
+                @if (Model.CorporationWorkload.Any())
+                {
+                    <div id="workloadChart"></div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-5"><i class="bx bx-bar-chart-alt-2 fs-1 d-block mb-2"></i>No tasks yet.</div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Top Performers</h4>
+                @if (Model.TopEmployees.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-centered table-nowrap mb-0">
+                            <tbody>
+                                @foreach (var e in Model.TopEmployees)
+                                {
+                                    <tr>
+                                        <td style="width:42px;">
+                                            <img src="@AvatarHelper.Resolve(e.ImageUrl, e.Gender)" class="rounded-circle avatar-xs" alt="" />
+                                        </td>
+                                        <td>
+                                            <h5 class="font-size-13 mb-1">@e.UserName</h5>
+                                            <p class="text-muted mb-0 font-size-12">@e.CompletedCount completed</p>
+                                        </td>
+                                        <td style="width:90px;">
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1" style="height:5px;">
+                                                    <div class="progress-bar bg-success" style="width:@(e.CompletionRate)%"></div>
+                                                </div>
+                                                <span class="ms-2 text-muted font-size-12">@e.CompletionRate%</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-5"><i class="bx bx-trophy fs-1 d-block mb-2"></i>No data yet.</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ─── Overdue table + activity feed ─────────────────────────────────── *@
+<div class="row">
+    <div class="col-xl-8">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3"><i class="bx bx-error-circle text-danger me-1"></i>Overdue &amp; Due Soon</h4>
+                @if (Model.OverdueAndDueSoon.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-centered table-nowrap align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Task</th><th>Corporation</th><th>Priority</th><th>Progress</th><th>Due</th><th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var t in Model.OverdueAndDueSoon)
+                                {
+                                    var pr = PriorityBadge(t.Priority);
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-soft-primary text-primary">@t.Code</span>
+                                            <span class="ms-1">@t.Title</span>
+                                        </td>
+                                        <td class="text-muted">@t.CorporationName</td>
+                                        <td><span class="badge @pr.cls">@pr.text</span></td>
+                                        <td style="min-width:120px;">
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1" style="height:5px;">
+                                                    <div class="progress-bar bg-primary" style="width:@(t.ProgressPercent)%"></div>
+                                                </div>
+                                                <span class="ms-2 text-muted font-size-12">@t.ProgressPercent%</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if (t.IsOverdue)
+                                            {
+                                                <span class="badge bg-soft-danger text-danger">@(Math.Abs(t.DaysLeft))d overdue</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">@t.DueDate.ToString("dd MMM")</span>
+                                            }
+                                        </td>
+                                        <td><a asp-controller="Task" asp-action="Details" asp-route-id="@t.Id" class="btn btn-sm btn-soft-primary"><i class="bx bx-show"></i></a></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-5"><i class="bx bx-check-shield fs-1 d-block mb-2"></i>Nothing overdue or due soon. Great!</div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">Recent Activity</h4>
+                @if (Model.RecentActivity.Any())
+                {
+                    <div class="dashboard-feed">
+                        @foreach (var a in Model.RecentActivity)
+                        {
+                            <div class="d-flex mb-3">
+                                <img src="@AvatarHelper.Resolve(a.ImageUrl, a.Gender)" class="rounded-circle avatar-xs me-2" alt="" />
+                                <div class="flex-grow-1">
+                                    <h5 class="font-size-13 mb-0">@a.UserName</h5>
+                                    <p class="text-muted mb-0 font-size-12">
+                                        <i class="bx @(a.Type == CommentType.Image ? "bx-image" : a.Type == CommentType.File ? "bx-file" : "bx-message-rounded") me-1"></i>@a.Preview
+                                    </p>
+                                    <small class="text-muted">on @a.TaskTitle · @a.CreatedAt.ToString("dd MMM, HH:mm")</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-5"><i class="bx bx-message-square-dots fs-1 d-block mb-2"></i>No activity yet.</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var trendLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TasksOverTime.Select(x => x.Name)));
+            var trendData   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TasksOverTime.Select(x => x.Count)));
+            var corpLabels  = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CorporationWorkload.Select(x => x.Name)));
+            var corpData    = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CorporationWorkload.Select(x => x.Count)));
+
+            // Tasks by Status — donut
+            new ApexCharts(document.querySelector("#statusChart"), {
+                chart: { type: 'donut', height: 260 },
+                series: [@Model.PendingTasks, @Model.InProgressTasks, @Model.CompletedTasks],
+                labels: ['Pending', 'In Progress', 'Completed'],
+                colors: ['#74788d', '#50a5f1', '#34c38f'],
+                legend: { position: 'bottom' }
+            }).render();
+
+            // Completion rate — radialBar
+            new ApexCharts(document.querySelector("#completionChart"), {
+                chart: { type: 'radialBar', height: 260 },
+                series: [@Model.CompletionRate],
+                labels: ['Completed'],
+                colors: ['#34c38f'],
+                plotOptions: { radialBar: { hollow: { size: '60%' }, dataLabels: { value: { fontSize: '22px' } } } }
+            }).render();
+
+            // Tasks by Priority — donut
+            new ApexCharts(document.querySelector("#priorityChart"), {
+                chart: { type: 'donut', height: 260 },
+                series: [@Model.PriorityLow, @Model.PriorityMedium, @Model.PriorityHigh, @Model.PriorityCritical],
+                labels: ['Low', 'Medium', 'High', 'Critical'],
+                colors: ['#10B981', '#F59E0B', '#F97316', '#EF4444'],
+                legend: { position: 'bottom' }
+            }).render();
+
+            // Tasks by Type — donut
+            new ApexCharts(document.querySelector("#categoryChart"), {
+                chart: { type: 'donut', height: 260 },
+                series: [@Model.CategoryNormal, @Model.CategoryPoint, @Model.CategoryCounter],
+                labels: ['Normal', 'Point', 'Counter'],
+                colors: ['#556ee6', '#f1b44c', '#50a5f1'],
+                legend: { position: 'bottom' }
+            }).render();
+
+            // Tasks over time — area
+            new ApexCharts(document.querySelector("#trendChart"), {
+                chart: { type: 'area', height: 300, toolbar: { show: false } },
+                series: [{ name: 'Tasks created', data: trendData }],
+                xaxis: { categories: trendLabels },
+                colors: ['#556ee6'],
+                stroke: { curve: 'smooth', width: 3 },
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
+                dataLabels: { enabled: false }
+            }).render();
+
+            // Workload by corporation — horizontal bar
+            if (corpLabels.length) {
+                new ApexCharts(document.querySelector("#workloadChart"), {
+                    chart: { type: 'bar', height: 320, toolbar: { show: false } },
+                    series: [{ name: 'Tasks', data: corpData }],
+                    xaxis: { categories: corpLabels },
+                    colors: ['#556ee6'],
+                    plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '55%' } },
+                    dataLabels: { enabled: true }
+                }).render();
+            }
+        })();
+    </script>
+}
