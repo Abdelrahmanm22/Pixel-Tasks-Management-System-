@@ -27,5 +27,6 @@ namespace Tasks.Repository.Data
         public DbSet<TaskPoint>        TaskPoints        { get; set; }
         public DbSet<TaskPointStatus>  TaskPointStatuses { get; set; }
         public DbSet<TaskComment>      TaskComments      { get; set; }
+        public DbSet<Notification>     Notifications     { get; set; }
     }
 }

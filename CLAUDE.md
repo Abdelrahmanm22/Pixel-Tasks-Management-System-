@@ -21,10 +21,10 @@
 Tasks.Domain  (Core — no dependencies on other projects)
     ├── Models/            (BaseModel, ICodedEntity, domain entities)
     ├── Models/Identity/   (AppUser : IdentityUser)
-    ├── Enums/             (Gender, TaskCategory, PriorityLevel, WorkTaskStatus, CommentType)
+    ├── Enums/             (Gender, TaskCategory, PriorityLevel, WorkTaskStatus, CommentType, NotificationType)
     ├── Authorization/     (Roles, Permissions, RolePermissions — static RBAC constants)
     ├── Repositories/      (IGenericRepository<T>)
-    ├── Services/          (ICodeGeneratorService)
+    ├── Services/          (ICodeGeneratorService, INotificationService, IRealtimeNotificationPublisher)
     ├── Specifications/    (ISpecifications<T>, BaseSpecifications<T>, per-entity spec folders)
     └── IUnitOfWork.cs
 
@@ -39,16 +39,19 @@ Tasks.Repository  (Infrastructure — references Tasks.Domain)
     └── UnitOfWork.cs
 
 Tasks.Services  (Business Logic — references Tasks.Domain)
-    └── CodeGeneration/CodeGeneratorService.cs  (generates sequential codes like PXC-000001)
+    ├── CodeGeneration/CodeGeneratorService.cs  (generates sequential codes like PXC-000001)
+    └── Notifications/NotificationService.cs    (creates/persists notifications + pushes via publisher)
 
 Tasks.Presentation  (MVC Web App — references Tasks.Repository + Tasks.Services)
-    ├── Controllers/       (AccountController, HomeController, CorporationController, SectionController, TaskTypeController, UserController, TaskController)
-    ├── ViewModels/        (LoginViewModel, CorporationViewModel, SectionViewModel, TaskTypeViewModel, UserViewModel, AvailableEmployeeViewModel, WorkTaskViewModel, TaskPointViewModel, TaskCommentViewModel, CommentsPanelViewModel, MyTaskViewModel, TaskWorkViewModel, AssignmentProgressViewModel, ErrorViewModel)
+    ├── Controllers/       (AccountController, HomeController, CorporationController, SectionController, TaskTypeController, UserController, TaskController, NotificationController)
+    ├── Hubs/              (NotificationHub — SignalR real-time notification channel)
+    ├── ViewModels/        (LoginViewModel, CorporationViewModel, SectionViewModel, TaskTypeViewModel, UserViewModel, AvailableEmployeeViewModel, WorkTaskViewModel, TaskPointViewModel, TaskCommentViewModel, CommentsPanelViewModel, MyTaskViewModel, TaskWorkViewModel, AssignmentProgressViewModel, NotificationViewModel, ErrorViewModel)
     ├── Views/             (Razor views organized per controller + Shared layout partials)
-    ├── MappingProfiles/   (CorporationProfile, SectionProfile, TaskTypeProfile, WorkTaskProfile)
+    ├── MappingProfiles/   (CorporationProfile, SectionProfile, TaskTypeProfile, WorkTaskProfile, NotificationProfile)
     ├── Authorization/     (PermissionRequirement, PermissionAuthorizationHandler, PermissionPolicyProvider, AppUserClaimsPrincipalFactory)
+    ├── Services/          (SignalRNotificationPublisher — IRealtimeNotificationPublisher impl via IHubContext)
     ├── TagHelpers/        (PermissionTagHelper — <permission required="..."> suppresses output for unauthorized users)
-    ├── Helpers/           (DocumentSettings — file upload/delete utility)
+    ├── Helpers/           (DocumentSettings — file upload/delete utility; AvatarHelper — resolves user avatar by gender)
     ├── Logs/              (Serilog daily rolling log files)
     ├── wwwroot/           (Skote template assets: css, js, lib, back/)
     ├── Program.cs         (startup, DI, pipeline)
@@ -74,6 +77,8 @@ Tasks.Presentation → Tasks.Repository → Tasks.Domain
 | **Tasks.Repository** | `Microsoft.EntityFrameworkCore.SqlServer 9.0.17` (references Tasks.Domain) |
 | **Tasks.Services** | _(no NuGet — only project reference to Tasks.Domain)_ |
 | **Tasks.Presentation** | `AutoMapper.Extensions.Microsoft.DependencyInjection 12.0.1`, `Serilog.AspNetCore 10.0.0`, `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation 9.0.17`, `Microsoft.EntityFrameworkCore.Tools 9.0.17`, `Microsoft.VisualStudio.Web.CodeGeneration.Design 9.0.12` |
+
+> **SignalR** (used for real-time notifications) ships in the ASP.NET Core shared framework — no server-side NuGet needed (`builder.Services.AddSignalR()`). The **browser client** is loaded from CDN (`microsoft-signalr/8.0.0/signalr.min.js`) in `_Scripts.cshtml`, matching how Toastr is loaded.
 
 ---
 
@@ -118,6 +123,11 @@ Tasks.Presentation → Tasks.Repository → Tasks.Domain
 - **`TaskComment`** : `BaseModel` — `Content?` (text), `FileUrl?` (image/file path), `CommentType Type`, `DateTime CreatedAt`, `int WorkTaskId`, `string UserId`  
   Each comment is exactly **one type** (text OR image OR file — never multiple).
 
+### Notifications
+
+- **`Notification`** : `BaseModel` — `string RecipientUserId`, `string? ActorUserId` (who triggered it), `NotificationType Type`, `string Title`, `string Message`, `string? Url` (relative deep-link), `bool IsRead` (default false), `DateTime CreatedAt`, `int? WorkTaskId`  
+  Navigation: `Recipient (AppUser)`, `Actor (AppUser?)`, `WorkTask?`. **Title/Message/Url are rendered at creation time** (in `NotificationService`) so views render plain stored strings and new types can render however they like.
+
 ---
 
 ## Enums
@@ -129,6 +139,7 @@ Tasks.Presentation → Tasks.Repository → Tasks.Domain
 | `PriorityLevel` | `Low=1` 🟢`#10B981`, `Medium=2` 🟡`#F59E0B`, `High=3` 🟠`#F97316`, `Critical=4` 🔴`#EF4444` | `Tasks.Domain/Enums/` |
 | `WorkTaskStatus` | `Pending=1`, `InProgress=2`, `Completed=3` | `Tasks.Domain/Enums/` |
 | `CommentType` | `Text=1`, `Image=2`, `File=3` | `Tasks.Domain/Enums/` |
+| `NotificationType` | `TaskAssigned=1`, `NewComment=2`, `TaskNeedsReview=3` | `Tasks.Domain/Enums/` |
 
 ---
 
@@ -234,6 +245,11 @@ Padding: 6-digit zero-padded for 1–999,999; plain number above that.
 | `WorkTaskByUserSpec(string userId)` | `WorkTask` | Tasks the user is assigned to (employee "My Tasks") |
 | `TaskAssignmentSpec(int workTaskId, string userId)` | `TaskAssignment` | A user's assignment for a task (includes WorkTask.Points, PointStatuses.TaskPoint) |
 | `TaskCommentSpec(int workTaskId)` | `TaskComment` | All comments for a task, oldest-first, includes User |
+| `NotificationByUserSpec(string userId)` | `Notification` | A user's notifications, newest-first, includes Actor |
+| `NotificationByUserSpec(string userId, int skip, int take)` | `Notification` | Paginated overload — history page + bell "recent" fetch |
+| `UnreadNotificationByUserSpec(string userId)` | `Notification` | A user's unread notifications — badge count + mark-all-read |
+| `NotificationByIdSpec(int id)` | `Notification` | Single notification by ID |
+| `NotificationByWorkTaskSpec(int workTaskId)` | `Notification` | A task's notifications — cleared before task delete (NoAction FK) |
 
 ---
 
@@ -242,18 +258,21 @@ Padding: 6-digit zero-padded for 1–999,999; plain number above that.
 | Interface | Implementation | Purpose |
 |---|---|---|
 | `ICodeGeneratorService` | `CodeGeneratorService` | Generates sequential codes (PXC-######) for coded entities |
+| `INotificationService` | `NotificationService` (Tasks.Services) | Composes + persists notifications then pushes them; `GetUnreadCountAsync`, `MarkAsReadAsync`, `MarkAllAsReadAsync` |
+| `IRealtimeNotificationPublisher` | `SignalRNotificationPublisher` (Tasks.Presentation) | Pushes a notification to its recipient over SignalR — abstraction in Domain, impl in Presentation so the service layer takes no web dependency |
 
-_More services to be added as features are built._
+**Notification flow:** `NotificationService` (intent-named methods: `NotifyTaskAssignedAsync`, `NotifyNewCommentAsync`, `NotifyNeedsReviewAsync`) builds Title/Message + a relative deep-link Url, persists the row via `IUnitOfWork`, recomputes the recipient's unread count, then calls `IRealtimeNotificationPublisher.PublishAsync`. It **never notifies the actor about their own action** (`recipientUserId == actorUserId` is skipped). Callers fire notifications **after commit** so a rolled-back transaction never produces a phantom alert.
 
 ---
 
 ## AutoMapper Configuration
 
-Profiles in `Tasks.Presentation/MappingProfiles/` (all registered in `Program.cs`): `CorporationProfile`, `SectionProfile`, `TaskTypeProfile`, `WorkTaskProfile`.
+Profiles in `Tasks.Presentation/MappingProfiles/` (all registered in `Program.cs`): `CorporationProfile`, `SectionProfile`, `TaskTypeProfile`, `WorkTaskProfile`, `NotificationProfile`.
 
 - `Corporation → CorporationViewModel` (for display)
 - `CorporationViewModel → Corporation` (for Create/Edit) — `Code` is **ignored** (auto-generated, not mapped from VM)
 - **`WorkTaskProfile`**: `WorkTask ↔ WorkTaskViewModel` (maps display fields TaskTypeName/TaskCategory/CorporationName/SectionName/CreatedByName/AssigneeCount; ignores Code, Status, navigation, select lists, Points, SelectedUserIds — those are set manually in the controller). Also `TaskComment → TaskCommentViewModel`.
+- **`NotificationProfile`**: `Notification → NotificationViewModel` (maps ActorName/ActorImageUrl/ActorGender; Icon/ColorClass/TimeAgo/AvatarSrc are computed in the VM).
 
 ---
 
@@ -261,11 +280,11 @@ Profiles in `Tasks.Presentation/MappingProfiles/` (all registered in `Program.cs
 
 ### DbContext — `TaskContext` : `IdentityDbContext<AppUser>`
 
-**DbSets:** `Corporations`, `Sections`, `TaskTypes`, `WorkTasks`, `TaskAssignments`, `TaskPoints`, `TaskPointStatuses`, `TaskComments`
+**DbSets:** `Corporations`, `Sections`, `TaskTypes`, `WorkTasks`, `TaskAssignments`, `TaskPoints`, `TaskPointStatuses`, `TaskComments`, `Notifications`
 
 **Configurations** (Fluent API via `IEntityTypeConfiguration<T>`):
 - Located in `Tasks.Repository/Data/Configrations/` (note: "Configrations" typo is established, keep it)
-- One config file per entity: `AppUserConfig`, `CorporationConfig`, `SectionConfig`, `TaskTypeConfig`, `WorkTaskConfig`, `TaskAssignmentConfig`, `TaskPointConfig`, `TaskPointStatusConfig`, `TaskCommentConfig`
+- One config file per entity: `AppUserConfig`, `CorporationConfig`, `SectionConfig`, `TaskTypeConfig`, `WorkTaskConfig`, `TaskAssignmentConfig`, `TaskPointConfig`, `TaskPointStatusConfig`, `TaskCommentConfig`, `NotificationConfig`
 - Applied via `modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly())`
 
 ### FK Cascade Strategy (SQL Server)
@@ -284,6 +303,8 @@ SQL Server forbids multiple cascade paths reaching the same table. Strategy:
 | TaskType → WorkTask | **Cascade** | No cycle path through TaskType |
 | TaskAssignment → TaskPointStatus | **Cascade** | Fully owned |
 | TaskPoint → TaskPointStatus | **NoAction** | Avoids cycle: WorkTask→Assignment→PointStatus AND WorkTask→Point→PointStatus |
+| AppUser → Notification (Recipient/Actor) | **NoAction** | Reaches AppUser (reachable from Corporation) — avoids cascade cycle |
+| WorkTask → Notification | **NoAction** | WorkTask reachable from Corporation — avoids cascade cycle; `TaskController.Delete` clears the task's notifications manually first |
 
 ### Seeding
 
@@ -327,6 +348,11 @@ AddScoped<IUnitOfWork, UnitOfWork>()
 
 // Business Services
 AddScoped<ICodeGeneratorService, CodeGeneratorService>()
+AddScoped<INotificationService, NotificationService>()
+AddScoped<IRealtimeNotificationPublisher, SignalRNotificationPublisher>()
+
+// Real-time
+AddSignalR()                     // hub mapped at /hubs/notifications via app.MapHub<NotificationHub>()
 
 // MVC
 AddControllersWithViews() + AddRazorRuntimeCompilation()
@@ -341,7 +367,7 @@ LoginPath = /Account/Login, AccessDeniedPath = /Account/AccessDenied, 8h expiry,
 ### Middleware Pipeline
 
 ```
-ExceptionHandler (prod) → HTTPS → Routing → Authentication → Authorization → StaticAssets → MapControllerRoute
+ExceptionHandler (prod) → HTTPS → Routing → Authentication → Authorization → StaticAssets → MapHub<NotificationHub> → MapControllerRoute
 ```
 
 Default route: `{controller=Account}/{action=Login}/{id?}` — starts on Login page.
@@ -426,6 +452,25 @@ The Task feature. Assignments are **materialized per-employee at creation time**
 
 Status recompute helpers (`RecomputeAssignmentStatus` / `RecomputeTaskStatus`): Point assignment Completed when all its points checked; Counter when CompletedCount ≥ TargetCount; Normal set explicitly by `SetStatus` (Pending=0% / InProgress=50% / Completed=100%). Task = Completed when all assignments Completed, InProgress when any started, else Pending.
 
+**Notification triggers in TaskController** (all fire `_notificationService` *after* commit/save):
+- **Create** → `NotifyTaskAssignedAsync` for each assigned employee (after `CommitTransactionAsync`).
+- **Edit** → `ReconcileAssignmentsAsync` returns the *newly added* assignee ids; `NotifyTaskAssignedAsync` for each (after commit).
+- **AddComment** → `NotifyNewCommentAsync` to the other party (`isCreator` ? employee : admin; `recipientIsAdmin = !isCreator`).
+- **TogglePoint / UpdateCounter / SetStatus** → each captures `previousStatus` before mutating and passes it to `SaveProgressAsync`; on a fresh transition into `Completed`, `NotifyNeedsReviewAsync` alerts the task creator. (Capturing in the caller is required because `SetStatus` sets the status before calling `SaveProgressAsync`.)
+- **Delete** → clears the task's notifications (`NotificationByWorkTaskSpec`) before deleting the task (NoAction FK).
+
+### NotificationController (`[Authorize]` — every authenticated user; no special permission)
+In-app notifications. SignalR's default user-id provider maps to the `NameIdentifier` claim (= AppUser.Id), so `Clients.User(userId)` reaches the right user with no group bookkeeping.
+
+| Action | Method | Description |
+|---|---|---|
+| `Index` | GET | Full history page (paged, `PageSize = 20`) for the current user |
+| `Recent` | GET | JSON: latest ~10 + unread count — seeds the bell dropdown on page load |
+| `Open` | GET | Marks one notification read, then redirects to its (local-validated) `Url` |
+| `MarkAllAsRead` | POST | AJAX JSON; clears the badge |
+
+**Front-end:** the Skote bell in `_Nav.cshtml` (button `#page-header-notifications-dropdown`) shows a live `#notification-badge`, a `#notification-list`, a "Mark all as read" action, and a "View all" footer → `Index`. `wwwroot/back/assets/js/notifications.js` opens the `/hubs/notifications` connection, calls `Recent` on load, handles the `ReceiveNotification` event (prepend + bump badge + Toastr), and wires mark-all-read (reads the `__RequestVerificationToken` from `@Html.AntiForgeryToken()` rendered in `_Nav`). HTML in the JS is escaped to avoid XSS from user-supplied names.
+
 ### Views Structure
 
 ```
@@ -436,15 +481,16 @@ Views/
 ├── TaskType/                      (Index, Create, Edit, Details)
 ├── User/                          (Index, Create, Edit)
 ├── Task/                          (Index, Create, Edit, Details — admin; MyTasks, Work — employee)
+├── Notification/Index.cshtml      (full notification history page, paged)
 ├── Home/Index.cshtml, Privacy.cshtml
 └── Shared/
     ├── _Layout.cshtml             (Main Skote admin layout: sidebar + nav + content + footer)
     ├── _AuthLayout.cshtml         (Login/register page layout — no sidebar)
-    ├── _Sidebar.cshtml            (Left nav — Tasks + My Tasks menus gated by <permission> TagHelper)
+    ├── _Sidebar.cshtml            (Left nav — Dashboard + Notifications + Tasks + My Tasks menus gated by <permission> TagHelper)
     ├── _CommentsChat.cshtml       (Shared chat panel — used by Task/Details + Task/Work; AJAX to AddComment)
-    ├── _Nav.cshtml                (Top navbar)
+    ├── _Nav.cshtml                (Top navbar — includes live notifications bell dropdown)
     ├── _Head.cshtml               (CSS includes)
-    ├── _Scripts.cshtml            (JS includes)
+    ├── _Scripts.cshtml            (JS includes — incl. SignalR client CDN + notifications.js)
     ├── _Footer.cshtml
     ├── _Notifications.cshtml      (TempData → Toastr notifications)
     ├── _RightSideBar.cshtml       (Skote theme settings sidebar)
@@ -507,6 +553,7 @@ No policy registration needed — `PermissionPolicyProvider` auto-wires it.
 - **`MyTaskViewModel`** — slim employee-list row: `Id`, `Code`, `Title`, `Category`, `Priority`, `DueDate`, `MyStatus`, `CorporationName`, `ProgressPercent`
 - **`TaskWorkViewModel`** — employee work view: task header + `AssignmentId`, `MyStatus`, `TargetCount?`/`CompletedCount?`, `Points` (List<TaskPointWorkViewModel> with `PointStatusId`/`Order`/`Description`/`IsCompleted`), `ProgressPercent`, `Comments`
 - **`AssignmentProgressViewModel`** — per-assignee row on admin Details: `UserName`, `Status`, `ProgressPercent`, `CompletedCount?`, `TargetCount?`, `PointsDone`, `PointsTotal` (concrete type — anonymous types can't cross the runtime-compiled view assembly via ViewBag)
+- **`NotificationViewModel`** — `Id`, `Type`, `Title`, `Message`, `Url?`, `IsRead`, `CreatedAt`, actor display (`ActorName?`, `ActorImageUrl?`, `ActorGender`), computed helpers (`AvatarSrc`, `Icon`/`ColorClass` by Type, `TimeAgo`)
 - **`ErrorViewModel`** — `RequestId`
 
 ---
@@ -531,7 +578,8 @@ Pixel.Tasks/
 │   │   ├── TaskCategory.cs
 │   │   ├── PriorityLevel.cs
 │   │   ├── WorkTaskStatus.cs
-│   │   └── CommentType.cs
+│   │   ├── CommentType.cs
+│   │   └── NotificationType.cs
 │   ├── Models/
 │   │   ├── BaseModel.cs
 │   │   ├── ICodedEntity.cs
@@ -543,12 +591,15 @@ Pixel.Tasks/
 │   │   ├── TaskPoint.cs
 │   │   ├── TaskPointStatus.cs
 │   │   ├── TaskComment.cs
+│   │   ├── Notification.cs
 │   │   └── Identity/
 │   │       └── AppUser.cs
 │   ├── Repositories/
 │   │   └── IGenericRepository.cs
 │   ├── Services/
-│   │   └── ICodeGeneratorService.cs
+│   │   ├── ICodeGeneratorService.cs
+│   │   ├── INotificationService.cs
+│   │   └── IRealtimeNotificationPublisher.cs
 │   ├── Authorization/
 │   │   ├── Roles.cs
 │   │   ├── Permissions.cs
@@ -571,8 +622,13 @@ Pixel.Tasks/
 │       │   └── WorkTaskByUserSpec.cs
 │       ├── TaskAssignmentSpec/
 │       │   └── TaskAssignmentSpec.cs
-│       └── TaskCommentSpec/
-│           └── TaskCommentSpec.cs
+│       ├── TaskCommentSpec/
+│       │   └── TaskCommentSpec.cs
+│       └── NotificationSpec/
+│           ├── NotificationByUserSpec.cs
+│           ├── UnreadNotificationByUserSpec.cs
+│           ├── NotificationByIdSpec.cs
+│           └── NotificationByWorkTaskSpec.cs
 ├── Tasks.Repository/
 │   ├── Tasks.Repository.csproj
 │   ├── GenericRepository.cs
@@ -590,13 +646,16 @@ Pixel.Tasks/
 │       │   ├── TaskAssignmentConfig.cs
 │       │   ├── TaskPointConfig.cs
 │       │   ├── TaskPointStatusConfig.cs
-│       │   └── TaskCommentConfig.cs
+│       │   ├── TaskCommentConfig.cs
+│       │   └── NotificationConfig.cs
 │       ├── DataSeed/  (empty — seed is in AppIdentityDbContextSeed.cs)
 │       └── Migrations/
 ├── Tasks.Services/
 │   ├── Tasks.Services.csproj
-│   └── CodeGeneration/
-│       └── CodeGeneratorService.cs
+│   ├── CodeGeneration/
+│   │   └── CodeGeneratorService.cs
+│   └── Notifications/
+│       └── NotificationService.cs
 └── Tasks.Presentation/
     ├── Tasks.Presentation.csproj
     ├── Program.cs
@@ -608,6 +667,10 @@ Pixel.Tasks/
     │   └── AppUserClaimsPrincipalFactory.cs
     ├── TagHelpers/
     │   └── PermissionTagHelper.cs
+    ├── Hubs/
+    │   └── NotificationHub.cs
+    ├── Services/
+    │   └── SignalRNotificationPublisher.cs
     ├── Controllers/
     │   ├── AccountController.cs
     │   ├── HomeController.cs
@@ -615,7 +678,8 @@ Pixel.Tasks/
     │   ├── SectionController.cs
     │   ├── TaskTypeController.cs
     │   ├── UserController.cs
-    │   └── TaskController.cs
+    │   ├── TaskController.cs
+    │   └── NotificationController.cs
     ├── ViewModels/
     │   ├── LoginViewModel.cs
     │   ├── CorporationViewModel.cs
@@ -630,14 +694,17 @@ Pixel.Tasks/
     │   ├── MyTaskViewModel.cs
     │   ├── TaskWorkViewModel.cs
     │   ├── AssignmentProgressViewModel.cs
+    │   ├── NotificationViewModel.cs
     │   └── ErrorViewModel.cs
     ├── MappingProfiles/
     │   ├── CorporationProfile.cs
     │   ├── SectionProfile.cs
     │   ├── TaskTypeProfile.cs
-    │   └── WorkTaskProfile.cs
+    │   ├── WorkTaskProfile.cs
+    │   └── NotificationProfile.cs
     ├── Helpers/
-    │   └── DocumentSettings.cs
+    │   ├── DocumentSettings.cs
+    │   └── AvatarHelper.cs
     ├── Views/
     │   ├── _ViewImports.cshtml
     │   ├── _ViewStart.cshtml
@@ -648,6 +715,7 @@ Pixel.Tasks/
     │   ├── TaskType/Index.cshtml, Create.cshtml, Edit.cshtml, Details.cshtml
     │   ├── User/Index.cshtml, Create.cshtml, Edit.cshtml
     │   ├── Task/Index.cshtml, Create.cshtml, Edit.cshtml, Details.cshtml, MyTasks.cshtml, Work.cshtml
+    │   ├── Notification/Index.cshtml
     │   └── Shared/ (_Layout, _AuthLayout, _Sidebar, _CommentsChat, _Nav, _Head, _Scripts, _Footer, _Notifications, _RightSideBar, _ValidationScriptsPartial, Error)
     ├── Logs/
     └── wwwroot/ (Skote template: css/, js/, lib/, back/, favicon.ico)

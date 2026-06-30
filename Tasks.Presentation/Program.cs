@@ -8,10 +8,13 @@ using Tasks.Domain.Models.Identity;
 using Tasks.Domain.Repositories;
 using Tasks.Domain.Services;
 using Tasks.Presentation.Authorization;
+using Tasks.Presentation.Hubs;
 using Tasks.Presentation.MappingProfiles;
+using Tasks.Presentation.Services;
 using Tasks.Repository;
 using Tasks.Repository.Data;
 using Tasks.Services.CodeGeneration;
+using Tasks.Services.Notifications;
 
 namespace Tasks.Presentation
 {
@@ -38,9 +41,12 @@ namespace Tasks.Presentation
             builder.Host.UseSerilog();
 
             #region Configure Services
-            builder.Services.AddAutoMapper(M => M.AddProfiles(new List<Profile>() { new CorporationProfile(), new TaskTypeProfile(), new SectionProfile(), new WorkTaskProfile() }));
+            builder.Services.AddAutoMapper(M => M.AddProfiles(new List<Profile>() { new CorporationProfile(), new TaskTypeProfile(), new SectionProfile(), new WorkTaskProfile(), new NotificationProfile() }));
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<ICodeGeneratorService, CodeGeneratorService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<IRealtimeNotificationPublisher, SignalRNotificationPublisher>();
+            builder.Services.AddSignalR();
             builder.Services.AddControllersWithViews()
                 .AddRazorRuntimeCompilation()
                 .AddViewOptions(options =>
@@ -127,6 +133,7 @@ namespace Tasks.Presentation
             app.UseAuthorization();
 
             app.MapStaticAssets();
+            app.MapHub<NotificationHub>("/hubs/notifications");
             app.MapControllerRoute(
                 name: "default",
                 // Start on the Login page by default

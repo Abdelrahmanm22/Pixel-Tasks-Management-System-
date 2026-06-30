@@ -10,6 +10,7 @@ using Tasks.Domain.Models;
 using Tasks.Domain.Models.Identity;
 using Tasks.Domain.Services;
 using Tasks.Domain.Specifications.CorporationSpec;
+using Tasks.Domain.Specifications.NotificationSpec;
 using Tasks.Domain.Specifications.SectionSpec;
 using Tasks.Domain.Specifications.TaskTypeSpec;
 using Tasks.Domain.Specifications.TaskCommentSpec;
@@ -28,6 +29,7 @@ namespace Tasks.Presentation.Controllers
         private readonly IMapper _mapper;
         private readonly ICodeGeneratorService _codeGenerator;
         private readonly UserManager<AppUser> _userManager;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<TaskController> _logger;
 
         public TaskController(
@@ -35,12 +37,14 @@ namespace Tasks.Presentation.Controllers
             IMapper mapper,
             ICodeGeneratorService codeGenerator,
             UserManager<AppUser> userManager,
+            INotificationService notificationService,
             ILogger<TaskController> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _codeGenerator = codeGenerator;
             _userManager = userManager;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -195,6 +199,13 @@ namespace Tasks.Presentation.Controllers
                 await _unitOfWork.CompleteAsync();
 
                 await _unitOfWork.CommitTransactionAsync();
+
+                // Notify each assigned employee (after commit so a rollback never alerts anyone)
+                var actor = await _userManager.GetUserAsync(User);
+                if (actor is not null)
+                    foreach (var employeeId in employeeIds)
+                        await _notificationService.NotifyTaskAssignedAsync(actor, employeeId, task);
+
                 TempData["Success"] = $"Task \"{task.Title}\" created successfully.";
                 return RedirectToAction(nameof(Index));
             }
@@ -278,7 +289,7 @@ namespace Tasks.Presentation.Controllers
                 await _unitOfWork.CompleteAsync();
 
                 await ReconcilePointsAsync(task, model, category);
-                await ReconcileAssignmentsAsync(task, employeeIds, category);
+                var addedUserIds = await ReconcileAssignmentsAsync(task, employeeIds, category);
 
                 // Refresh aggregate state after structural changes
                 var refreshed = await _unitOfWork.Repository<WorkTask>().GetByIdAsync(new WorkTaskSpec(id));
@@ -287,6 +298,13 @@ namespace Tasks.Presentation.Controllers
                 await _unitOfWork.CompleteAsync();
 
                 await _unitOfWork.CommitTransactionAsync();
+
+                // Notify only the employees newly assigned during this edit
+                var actor = await _userManager.GetUserAsync(User);
+                if (actor is not null)
+                    foreach (var employeeId in addedUserIds)
+                        await _notificationService.NotifyTaskAssignedAsync(actor, employeeId, task);
+
                 TempData["Success"] = $"Task \"{task.Title}\" updated successfully.";
                 return RedirectToAction(nameof(Index));
             }
@@ -320,6 +338,13 @@ namespace Tasks.Presentation.Controllers
                 // TaskAssignment → TaskComment is NoAction, so delete comments before assignments
                 foreach (var comment in task.Comments.ToList())
                     _unitOfWork.Repository<TaskComment>().Delete(comment);
+                await _unitOfWork.CompleteAsync();
+
+                // Notification → WorkTask is NoAction, so clear the task's notifications too
+                var taskNotifications = await _unitOfWork.Repository<Notification>()
+                    .GetAllAsync(new NotificationByWorkTaskSpec(id));
+                foreach (var notification in taskNotifications)
+                    _unitOfWork.Repository<Notification>().Delete(notification);
                 await _unitOfWork.CompleteAsync();
 
                 _unitOfWork.Repository<WorkTask>().Delete(task);
@@ -497,10 +522,11 @@ namespace Tasks.Presentation.Controllers
             if (ps is null)
                 return Json(new { success = false, message = "Point not found." });
 
+            var previousStatus = assignment.Status;
             ps.IsCompleted = !ps.IsCompleted;
             ps.CompletedAt = ps.IsCompleted ? DateTime.UtcNow : null;
 
-            return await SaveProgressAsync(task!, assignment);
+            return await SaveProgressAsync(task!, assignment, previousStatus: previousStatus);
         }
 
         [HttpPost]
@@ -515,10 +541,11 @@ namespace Tasks.Presentation.Controllers
             if (assignment.Status == WorkTaskStatus.Reviewed)
                 return Json(new { success = false, message = "This task has been reviewed and is locked." });
 
+            var previousStatus = assignment.Status;
             var target = task!.TargetCount ?? 0;
             assignment.CompletedCount = Math.Clamp(value, 0, target);
 
-            return await SaveProgressAsync(task, assignment);
+            return await SaveProgressAsync(task, assignment, previousStatus: previousStatus);
         }
 
         [HttpPost]
@@ -540,9 +567,10 @@ namespace Tasks.Presentation.Controllers
             if (!Enum.IsDefined(status))
                 return Json(new { success = false, message = "Invalid status." });
 
+            var previousStatus = assignment.Status;
             assignment.Status = status;
 
-            return await SaveProgressAsync(task, assignment, recomputeAssignment: false);
+            return await SaveProgressAsync(task, assignment, recomputeAssignment: false, previousStatus: previousStatus);
         }
 
         // ─── Admin: review sign-off ──────────────────────────────────────────
@@ -641,6 +669,12 @@ namespace Tasks.Presentation.Controllers
             await _unitOfWork.Repository<TaskComment>().AddAsync(comment);
             await _unitOfWork.CompleteAsync();
 
+            // Notify the other party in the thread (admin→employee or employee→admin)
+            var actor = await _userManager.GetUserAsync(User);
+            var recipientId = isCreator ? targetAssignment.UserId : task.CreatedByUserId;
+            if (actor is not null)
+                await _notificationService.NotifyNewCommentAsync(actor, recipientId, task, taskAssignmentId, recipientIsAdmin: !isCreator);
+
             return Redirect(safeReturn);
         }
 
@@ -677,7 +711,7 @@ namespace Tasks.Presentation.Controllers
             return (task, assignment);
         }
 
-        private async Task<IActionResult> SaveProgressAsync(WorkTask task, TaskAssignment assignment, bool recomputeAssignment = true)
+        private async Task<IActionResult> SaveProgressAsync(WorkTask task, TaskAssignment assignment, bool recomputeAssignment = true, WorkTaskStatus previousStatus = WorkTaskStatus.Pending)
         {
             if (recomputeAssignment)
                 RecomputeAssignmentStatus(assignment, task);
@@ -685,6 +719,14 @@ namespace Tasks.Presentation.Controllers
 
             _unitOfWork.Repository<WorkTask>().Update(task);
             await _unitOfWork.CompleteAsync();
+
+            // On a fresh transition into Completed, alert the task creator that it needs review
+            if (previousStatus != WorkTaskStatus.Completed && assignment.Status == WorkTaskStatus.Completed)
+            {
+                var actor = await _userManager.GetUserAsync(User);
+                if (actor is not null)
+                    await _notificationService.NotifyNeedsReviewAsync(actor, task.CreatedByUserId, task, assignment.Id);
+            }
 
             return Json(new
             {
@@ -767,7 +809,8 @@ namespace Tasks.Presentation.Controllers
             await _unitOfWork.CompleteAsync();
         }
 
-        private async Task ReconcileAssignmentsAsync(WorkTask task, List<string> employeeIds, TaskCategory category)
+        // Returns the ids of newly added assignees so the caller can notify them after commit.
+        private async Task<List<string>> ReconcileAssignmentsAsync(WorkTask task, List<string> employeeIds, TaskCategory category)
         {
             var target = employeeIds.ToHashSet();
 
@@ -782,8 +825,9 @@ namespace Tasks.Presentation.Controllers
 
             // Add newly selected assignees
             var current = task.Assignments.Select(a => a.UserId).ToHashSet();
+            var addedUserIds = employeeIds.Where(id => !current.Contains(id)).ToList();
             var points = await _unitOfWork.Repository<TaskPoint>().GetAllAsync(new WorkTaskPointsByTaskSpecLocal(task.Id));
-            foreach (var userId in employeeIds.Where(id => !current.Contains(id)))
+            foreach (var userId in addedUserIds)
             {
                 var assignment = new TaskAssignment
                 {
@@ -805,6 +849,8 @@ namespace Tasks.Presentation.Controllers
                     });
             }
             await _unitOfWork.CompleteAsync();
+
+            return addedUserIds;
         }
 
         private void RecomputeAllStatuses(WorkTask task)

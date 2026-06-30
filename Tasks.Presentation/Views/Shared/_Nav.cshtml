@@ -8,6 +8,7 @@
     var avatarSrc   = AvatarHelper.Resolve(currentUser?.ImageUrl, currentUser?.Gender ?? Tasks.Domain.Enums.Gender.Male);
 }
 
+@Html.AntiForgeryToken()
 <header id="page-topbar">
 	<div class="navbar-header">
 		<div class="d-flex">
@@ -48,10 +49,11 @@
 
 			<!-- Notifications dropdown -->
 			<div class="dropdown d-inline-block">
-				<button type="button" class="btn header-item noti-icon waves-effect"
+				<button type="button" class="btn header-item noti-icon waves-effect position-relative"
 						id="page-header-notifications-dropdown"
 						data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 					<i class="bx bx-bell bx-tada"></i>
+					<span id="notification-badge" class="badge bg-danger rounded-pill d-none">0</span>
 				</button>
 				<div class="dropdown-menu dropdown-menu-lg dropdown-menu-end p-0"
 					 aria-labelledby="page-header-notifications-dropdown">
@@ -60,10 +62,19 @@
 							<div class="col">
 								<h6 class="m-0">Notifications</h6>
 							</div>
+							<div class="col-auto">
+								<a href="javascript:void(0);" id="mark-all-read" class="small text-reset text-decoration-underline">Mark all as read</a>
+							</div>
 						</div>
 					</div>
+					<div data-simplebar style="max-height: 250px;">
+						<div id="notification-list"></div>
+						<div id="notification-empty" class="text-muted text-center small py-4 d-none">No new notifications</div>
+					</div>
 					<div class="p-2 border-top d-grid">
-						<span class="text-muted text-center small py-2">No new notifications</span>
+						<a class="btn btn-sm btn-link font-size-14 text-center" asp-controller="Notification" asp-action="Index">
+							<i class="mdi mdi-arrow-right-circle me-1"></i> View all
+						</a>
 					</div>
 				</div>
 			</div>
