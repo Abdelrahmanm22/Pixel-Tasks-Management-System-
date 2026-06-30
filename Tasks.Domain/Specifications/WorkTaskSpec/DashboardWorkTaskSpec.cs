@@ -14,5 +14,14 @@ namespace Tasks.Domain.Specifications.WorkTaskSpec
             AddInclude("Assignments.User");
             SetOrderByDesc(t => t.RequestDate);
         }
+
+        // Scoped to a single admin's created tasks (admin dashboard isolation).
+        public DashboardWorkTaskSpec(string creatorUserId) : base(t => t.CreatedByUserId == creatorUserId)
+        {
+            AddInclude("TaskType");
+            AddInclude("Corporation");
+            AddInclude("Assignments.User");
+            SetOrderByDesc(t => t.RequestDate);
+        }
     }
 }

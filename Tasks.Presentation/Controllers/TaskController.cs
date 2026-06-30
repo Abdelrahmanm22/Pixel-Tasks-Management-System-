@@ -53,16 +53,24 @@ namespace Tasks.Presentation.Controllers
         [Authorize(Policy = Permissions.Tasks.ViewAll)]
         public async Task<IActionResult> Index()
         {
-            var tasks = await _unitOfWork.Repository<WorkTask>().GetAllAsync(new WorkTaskSpec());
+            var userId = _userManager.GetUserId(User)!;
+            var tasks = await _unitOfWork.Repository<WorkTask>().GetAllAsync(new WorkTaskSpec(userId));
             var viewModels = _mapper.Map<IEnumerable<WorkTask>, IEnumerable<WorkTaskViewModel>>(tasks);
             return View(viewModels);
         }
+
+        // An admin may only manage tasks they created. (phase 2: || User.IsInRole(Roles.SuperAdmin))
+        private bool CanManageTask(WorkTask task) =>
+            task.CreatedByUserId == _userManager.GetUserId(User);
 
         [Authorize(Policy = Permissions.Tasks.ViewAll)]
         public async Task<IActionResult> Details(int id, int? assignmentId)
         {
             var task = await _unitOfWork.Repository<WorkTask>().GetByIdAsync(new WorkTaskSpec(id));
             if (task is null)
+                return NotFound();
+
+            if (!CanManageTask(task))
                 return NotFound();
 
             var vm = _mapper.Map<WorkTask, WorkTaskViewModel>(task);
@@ -233,6 +241,9 @@ namespace Tasks.Presentation.Controllers
             if (task is null)
                 return NotFound();
 
+            if (!CanManageTask(task))
+                return NotFound();
+
             var vm = _mapper.Map<WorkTask, WorkTaskViewModel>(task);
             vm.SelectedUserIds = task.Assignments.Select(a => a.UserId).ToList();
             vm.Points = task.Points.OrderBy(p => p.Order)
@@ -253,6 +264,9 @@ namespace Tasks.Presentation.Controllers
 
             var task = await _unitOfWork.Repository<WorkTask>().GetByIdAsync(new WorkTaskSpec(id));
             if (task is null)
+                return NotFound();
+
+            if (!CanManageTask(task))
                 return NotFound();
 
             var category = task.TaskType.Category; // task type is immutable after creation
@@ -324,6 +338,9 @@ namespace Tasks.Presentation.Controllers
         {
             var task = await _unitOfWork.Repository<WorkTask>().GetByIdAsync(new WorkTaskSpec(id));
             if (task is null)
+                return Json(new { success = false, message = "Task not found." });
+
+            if (!CanManageTask(task))
                 return Json(new { success = false, message = "Task not found." });
 
             await _unitOfWork.BeginTransactionAsync();

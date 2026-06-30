@@ -240,9 +240,12 @@ Padding: 6-digit zero-padded for 1–999,999; plain number above that.
 | `TaskTypeSpec()` | `TaskType` | Get all task types |
 | `TaskTypeSpec(int id)` | `TaskType` | Get task type by ID |
 | `TaskTypeByNameSpec(string name)` | `TaskType` | Find by exact name — remote uniqueness validation |
-| `WorkTaskSpec()` | `WorkTask` | All tasks (admin Index) — includes TaskType, Corporation, Section, CreatedBy, Assignments; ordered by RequestDate desc |
+| `WorkTaskSpec()` | `WorkTask` | All tasks (unfiltered, light graph) — includes TaskType, Corporation, Section, CreatedBy, Assignments; ordered by RequestDate desc. Reserved for a phase-2 Super Admin "see everything" view |
+| `WorkTaskSpec(string creatorUserId)` | `WorkTask` | Same light graph filtered to `CreatedByUserId` — admin "Tasks List" Index (admin isolation: each admin sees only their own tasks) |
 | `WorkTaskSpec(int id)` | `WorkTask` | Single task full graph (Details/Edit) — includes Points, Assignments.User, Assignments.PointStatuses, Comments.User |
 | `WorkTaskByUserSpec(string userId)` | `WorkTask` | Tasks the user is assigned to (employee "My Tasks") |
+| `WorkTaskByCreatorSpec(string userId)` | `WorkTask` | Tasks the admin created, heavier graph (Points, Assignments.PointStatuses) — admin "Active Tasks" cards |
+| `DashboardWorkTaskSpec()` / `DashboardWorkTaskSpec(string creatorUserId)` | `WorkTask` | Dashboard aggregates; the string overload scopes stats/charts to one admin's created tasks |
 | `TaskAssignmentSpec(int workTaskId, string userId)` | `TaskAssignment` | A user's assignment for a task (includes WorkTask.Points, PointStatuses.TaskPoint) |
 | `TaskCommentSpec(int workTaskId)` | `TaskComment` | All comments for a task, oldest-first, includes User |
 | `NotificationByUserSpec(string userId)` | `Notification` | A user's notifications, newest-first, includes Actor |
@@ -329,7 +332,7 @@ Server=.;Database=TasksDB;Trusted_Connection=True;MultipleActiveResultSets=true;
 6. **Point-type tasks:** Each assigned user independently marks individual points as done — allows partial completion.
 7. **Counter-type tasks:** `TargetCount` set on WorkTask; each `TaskAssignment` has its own `CompletedCount`.
 8. **Comments** function as internal chat — each comment is exactly one type: text, image, or file.
-9. **RBAC** (Roles + Permissions) is planned but NOT implemented yet. All users are in one `AppUser` table; roles will be added later.
+9. **Admin task isolation:** each admin only sees/manages the tasks they created — list pages (`Index` "Tasks List", `MyCreatedTasks` "Active Tasks") and the admin dashboard are filtered by `CreatedByUserId`, and `Details`/`Edit`/`Delete` enforce it via the `CanManageTask` helper (NotFound otherwise). A future **Super Admin** role (phase 2) will see everything — the rule lives in the single `CanManageTask` helper and the unfiltered `WorkTaskSpec()`/`DashboardWorkTaskSpec()` overloads so the change is one place.
 
 ---
 
@@ -436,11 +439,12 @@ The Task feature. Assignments are **materialized per-employee at creation time**
 
 | Action | Method | Policy | Description |
 |---|---|---|---|
-| `Index` | GET | `Tasks.ViewAll` | Admin DataTable of all tasks |
-| `Details` | GET | `Tasks.ViewAll` | Admin view: info + per-assignee progress table + comments chat |
+| `Index` | GET | `Tasks.ViewAll` | Admin DataTable ("Tasks List") of the **current admin's own** tasks only (admin isolation) |
+| `Details` | GET | `Tasks.ViewAll` | Admin view: info + per-assignee progress table + comments chat. Guarded by `CanManageTask` → NotFound if not the creator |
+| `MyCreatedTasks` | GET | `Tasks.ViewAll` | Admin card view ("Active Tasks") of own created tasks, excluding Reviewed |
 | `Create` | GET/POST | `Tasks.Create` | Create form; POST in a transaction → generate `PXW` code → save WorkTask → Points (Point type) → one TaskAssignment per employee → seed TaskPointStatus per (assignment×point) |
-| `Edit` | GET/POST | `Tasks.Create` | Descriptive fields free; reconcile assignees & points (removing one deletes its progress); type locked |
-| `Delete` | POST | `Tasks.Create` | AJAX JSON; deletes TaskPointStatuses first (NoAction FK) then cascades the rest |
+| `Edit` | GET/POST | `Tasks.Create` | Descriptive fields free; reconcile assignees & points (removing one deletes its progress); type locked. Guarded by `CanManageTask` → NotFound if not the creator |
+| `Delete` | POST | `Tasks.Create` | AJAX JSON; deletes TaskPointStatuses first (NoAction FK) then cascades the rest. Guarded by `CanManageTask` → `{ success:false }` if not the creator |
 | `MyTasks` | GET | `Tasks.ViewAssigned` | Employee card list of own tasks with progress % |
 | `Work` | GET | `Tasks.ViewAssigned` | Employee working view (points checklist / counter bar / Normal toggle) + chat. Guards assignment ownership |
 | `TogglePoint` | POST | `Tasks.UpdateProgress` | AJAX flip a TaskPointStatus, recompute statuses, return progress |

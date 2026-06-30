@@ -15,6 +15,17 @@ namespace Tasks.Domain.Specifications.WorkTaskSpec
             SetOrderByDesc(t => t.RequestDate);
         }
 
+        // Tasks created by the given admin (admin "Tasks List" table) — same light graph as the full list.
+        public WorkTaskSpec(string creatorUserId) : base(t => t.CreatedByUserId == creatorUserId)
+        {
+            AddInclude("TaskType");
+            AddInclude("Corporation");
+            AddInclude("Section");
+            AddInclude("CreatedBy");
+            AddInclude("Assignments");
+            SetOrderByDesc(t => t.RequestDate);
+        }
+
         // Single task with the full graph (Details / Edit).
         public WorkTaskSpec(int id) : base(t => t.Id == id)
         {

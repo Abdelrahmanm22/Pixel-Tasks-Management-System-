@@ -63,7 +63,8 @@ namespace Tasks.Presentation.Controllers
 
         private async Task<AdminDashboardViewModel> BuildAdminDashboardAsync()
         {
-            var tasks = (await _unitOfWork.Repository<WorkTask>().GetAllAsync(new DashboardWorkTaskSpec())).ToList();
+            var userId = _userManager.GetUserId(User)!;
+            var tasks = (await _unitOfWork.Repository<WorkTask>().GetAllAsync(new DashboardWorkTaskSpec(userId))).ToList();
             var corporations = await _unitOfWork.Repository<Corporation>().GetAllAsync(new CorporationSpec());
             var sections = await _unitOfWork.Repository<Section>().GetAllAsync(new SectionSpec());
             var employees = await _userManager.GetUsersInRoleAsync(Roles.Employee);
